@@ -2,7 +2,6 @@ val Http4sVersion = "0.20.9"
 val CirceVersion = "0.11.1"
 val catsParVersion = "0.2.1"
 val enumeratumV = "1.5.13"
-val Specs2Version = "4.1.0"
 val LogbackVersion = "1.2.3"
 
 //tests
@@ -17,24 +16,23 @@ lazy val root = (project in file("."))
     version := "0.0.1-SNAPSHOT",
     scalaVersion := "2.12.8",
     libraryDependencies ++= Seq(
-          "com.beachape"                %% "enumeratum"                   % enumeratumV,
-"com.beachape" %% "enumeratum-circe" % enumeratumV,
-      "org.http4s"      %% "http4s-blaze-server" % Http4sVersion,
-      "org.http4s"      %% "http4s-blaze-client" % Http4sVersion,
-      "org.http4s"      %% "http4s-circe"        % Http4sVersion,
-      "org.http4s"      %% "http4s-dsl"          % Http4sVersion,
-      "io.chrisdavenport" %% "cats-par" % catsParVersion,
-      "io.circe"        %% "circe-generic"       % CirceVersion,
-      "io.circe"        %% "circe-generic-extras" % CirceVersion,
-      "io.circe" %% "circe-parser" % CirceVersion,
-      "org.specs2"      %% "specs2-core"         % Specs2Version % "test",
-      "ch.qos.logback"  %  "logback-classic"     % LogbackVersion,
-       "com.beachape" %% "enumeratum-scalacheck" % enumeratumV,
-          "com.mrdziuban"               %% "scalacheck-magnolia"          % scalacheckMagnoliaV,
-    "org.scalatest"               %% "scalatest"                    % scalaTestV % Test,
-    "org.specs2"                  %% "specs2-core"                  % specs2V % Test,
-    "org.specs2"                  %% "specs2-matcher"               % specs2V % Test,
-"org.specs2" %% "specs2-scalacheck" % specs2V % Test,
+      "io.chrisdavenport" %% "cats-par"              % catsParVersion,
+      "io.circe"          %% "circe-generic"         % CirceVersion,
+      "io.circe"          %% "circe-generic-extras"  % CirceVersion,
+      "io.circe"          %% "circe-parser"          % CirceVersion,
+      "com.beachape"      %% "enumeratum"            % enumeratumV,
+      "com.beachape"      %% "enumeratum-circe"      % enumeratumV,
+      "com.beachape"      %% "enumeratum-scalacheck" % enumeratumV % Test,
+      "org.http4s"        %% "http4s-blaze-server"   % Http4sVersion,
+      "org.http4s"        %% "http4s-blaze-client"   % Http4sVersion,
+      "org.http4s"        %% "http4s-circe"          % Http4sVersion,
+      "org.http4s"        %% "http4s-dsl"            % Http4sVersion,
+      "ch.qos.logback"    %  "logback-classic"       % LogbackVersion,
+      "com.mrdziuban"     %% "scalacheck-magnolia"   % scalacheckMagnoliaV,
+      "org.scalatest"     %% "scalatest"             % scalaTestV % Test,
+      "org.specs2"        %% "specs2-core"           % specs2V % Test,
+      "org.specs2"        %% "specs2-matcher"        % specs2V % Test,
+      "org.specs2"        %% "specs2-scalacheck"     % specs2V % Test,
     ),
     addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.10.3"),
     addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.0")
