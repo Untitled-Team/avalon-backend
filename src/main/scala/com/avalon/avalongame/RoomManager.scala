@@ -5,18 +5,7 @@ import cats.effect.{Bracket, Concurrent, Resource, Sync}
 import cats.effect.concurrent.{MVar, Ref}
 import cats.implicits._
 import fs2._
-
 import scala.util.control.NoStackTrace
-
-
-
-sealed trait GameState
-
-//final case class Username(value: String) extends AnyVal
-
-
-
-//final case class Room(users: List[User])
 
 trait RoomManager[F[_]] {
   def create(roomId: RoomId, config: GameConfig): F[Unit]
@@ -53,6 +42,12 @@ trait Room[F[_]] {
 
 object Room {
 
+  case object NotEnoughPlayers extends RuntimeException with NoStackTrace
+
+  case class GameRepresentation(users: List[User],
+                                state: GameState)
+
+
   case class InternalRoom(users: List[User])
   //timeouts on get/reads?
   def build[F[_]](roomId: RoomId, config: GameConfig)(implicit F: Concurrent[F]): F[Room[F]] =
@@ -63,7 +58,14 @@ object Room {
         def users: F[List[User]] = mvar.read.map(_.users)
 
         def addUser(user: User): F[Unit] =
-          Sync[F].bracket(mvar.take.map(room => room.copy(user :: room.users)))(_ => Sync[F].unit)(mvar.put)
+          mvar.take.flatMap(room => mvar.put(room.copy(user :: room.users)))
+
+//        def startGame: F[GameRepresentation]
       }
     }
 }
+
+sealed trait GameState
+case object Creation
+case class MissionProposing(missionLeader: User) extends GameState
+case class MissiongProposed(voters: NonEmptyList[User]) extends GameState
