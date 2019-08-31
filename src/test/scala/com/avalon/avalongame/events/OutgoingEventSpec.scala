@@ -38,18 +38,18 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
 
   def gameCreatedJson(gameCreated: GameCreated): Json =
     Json.obj(
-      "event" := "GameCreated",
+      "action" := "GameCreated",
       "roomId" := gameCreated.roomId.value
     )
 
   def userJoinedJson(userJoined: UserJoined): Json =
     Json.obj(
-      "event" := "UserJoined",
+      "action" := "UserJoined",
       "nickname" := userJoined.nickname.value)
 
   def joinedRoomJson(joinedRoom: JoinedRoom): Json =
     Json.obj(
-      "event" := "JoinedRoom",
+      "action" := "JoinedRoom",
       "room" := Json.obj(
         "users" := Json.fromValues(joinedRoom.room.users.map(u => Json.obj("nickname" := u.nickname))),
         "config" := Json.obj(

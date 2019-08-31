@@ -1,10 +1,11 @@
 package com.avalon.avalongame
 
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, State, StateT}
 import cats.effect.{Bracket, Concurrent, Resource, Sync}
 import cats.effect.concurrent.{MVar, Ref}
 import cats.implicits._
 import fs2._
+
 import scala.util.control.NoStackTrace
 
 trait RoomManager[F[_]] {
@@ -41,11 +42,10 @@ trait Room[F[_]] {
 }
 
 object Room {
+  import shapeless._
 
-  case object NotEnoughPlayers extends RuntimeException with NoStackTrace
 
-  case class GameRepresentation(users: List[User],
-                                state: GameState)
+
 
 
   case class InternalRoom(users: List[User])
@@ -65,7 +65,76 @@ object Room {
     }
 }
 
+sealed abstract case class Mission(players: Option[List[User]], numberOfAdventurers: Int)
+
+object Mission {
+  def make(players: Option[List[User]], numberOfAdventurers: Int): Mission =
+    new Mission(players, numberOfAdventurers){}
+}
+
+sealed abstract case class Missions(one: Mission,
+                                    two: Mission,
+                                    three: Mission,
+                                    four: Mission,
+                                    five: Mission)
+object Missions {
+  def fromPlayers(players: Int): Either[Throwable, Missions] = players match {
+    case 5  =>
+      Right(
+        new Missions(
+          Mission.make(None, 2),
+          Mission.make(None, 3),
+          Mission.make(None, 2),
+          Mission.make(None, 3),
+          Mission.make(None, 3)){})
+    case 6  =>
+      Right(
+        new Missions(
+          Mission.make(None, 2),
+          Mission.make(None, 3),
+          Mission.make(None, 4),
+          Mission.make(None, 3),
+          Mission.make(None, 4)){})
+    case 7  =>
+      Right(
+        new Missions(
+          Mission.make(None, 2),
+          Mission.make(None, 3),
+          Mission.make(None, 3),
+          Mission.make(None, 4),
+          Mission.make(None, 4)){})
+    case 8 | 9 | 10  =>
+      Right(
+        new Missions(
+          Mission.make(None, 3),
+          Mission.make(None, 4),
+          Mission.make(None, 4),
+          Mission.make(None, 5),
+          Mission.make(None, 5)){})
+  }
+}
+
+sealed trait BadGuy
+case class Assassin(nickname: Nickname) extends BadGuy
+case class NormalBadGuy(nickname: Nickname) extends BadGuy
+
+sealed trait GoodGuy
+case class Merlin(nickname: Nickname) extends GoodGuy
+case class NormalGoodGuy(nickname: Nickname) extends GoodGuy
+
+case object NotEnoughPlayers extends RuntimeException with NoStackTrace
+
+case class GameRepresentation(state: GameState,
+                              missions: Missions,
+                              badGuys: List[BadGuy],
+                              goodGuys: List[GoodGuy],
+                              users: List[User]) {
+  //    def addBadGuys()
+}
+
+//  val missions =
+
 sealed trait GameState
-case object Creation
-case class MissionProposing(missionLeader: User) extends GameState
-case class MissiongProposed(voters: NonEmptyList[User]) extends GameState
+case object Lobby extends GameState
+case class MissionProposing(missionNumber: Int, missionLeader: User) extends GameState
+case class MissionProposed(voters: NonEmptyList[User]) extends GameState

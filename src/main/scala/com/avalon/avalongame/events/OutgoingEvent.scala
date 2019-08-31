@@ -28,8 +28,8 @@ object UserJoined {
 
 object OutgoingEventEncoder {
   implicit val encoder: Encoder[OutgoingEvent] = Encoder.instance {
-    case g@GameCreated(_) => GameCreated.encoder.apply(g).deepMerge(Json.obj("event" := "GameCreated"))
-    case j@JoinedRoom(_) => JoinedRoom.encoder.apply(j).deepMerge(Json.obj("event" := "JoinedRoom"))
-    case u@UserJoined(_) => UserJoined.encoder.apply(u).deepMerge(Json.obj("event" := "UserJoined"))
+    case g@GameCreated(_) => GameCreated.encoder.apply(g).deepMerge(Json.obj("action" := "GameCreated"))
+    case j@JoinedRoom(_) => JoinedRoom.encoder.apply(j).deepMerge(Json.obj("action" := "JoinedRoom")) //maybe reusable as Lobby?
+    case u@UserJoined(_) => UserJoined.encoder.apply(u).deepMerge(Json.obj("action" := "UserJoined"))
   }
 }

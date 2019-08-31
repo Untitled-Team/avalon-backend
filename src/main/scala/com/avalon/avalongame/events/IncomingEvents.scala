@@ -27,7 +27,7 @@ object StartGame {
 object IncomingEventDecoder {
   implicit val decoder: Decoder[IncomingEvent] = Decoder.instance { hcursor =>
     for {
-      eventName <- hcursor.downField("event").as[String]
+      eventName <- hcursor.downField("action").as[String]
       decoded <- eventName match {
         case "CreateGame" => CreateGame.decoder.decodeJson(hcursor.value)
         case "JoinGame"   => JoinGame.decoder.decodeJson(hcursor.value)
