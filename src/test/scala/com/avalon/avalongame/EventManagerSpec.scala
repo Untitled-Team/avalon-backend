@@ -83,7 +83,13 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
       override def generate: IO[RoomId] = IO.pure(RoomId("blah"))
     }
 
-    val roomManager: RoomManager[IO] = RoomManager.build[IO].unsafeRunSync()
+    val mockRandomAlg: RandomAlg[IO] = new RandomAlg[IO] {
+      override def shuffle[A](l: List[A]): IO[List[A]] = IO.pure(l)
+
+      override def randomGet[A](l: List[A]): IO[A] = IO(l.head) //oops
+    }
+
+    val roomManager: RoomManager[IO] = RoomManager.build[IO](mockRandomAlg).unsafeRunSync()
   }
 }
 

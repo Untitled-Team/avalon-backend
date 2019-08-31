@@ -17,7 +17,8 @@ object AvalongameServer {
   def stream[F[_]: ConcurrentEffect : Par](implicit T: Timer[F], C: ContextShift[F]): Stream[F, Nothing] = {
     for {
       client <- BlazeClientBuilder[F](global).stream
-      roomManager <- Stream.eval(RoomManager.build[F])
+      randomAlg = RandomAlg.build[F]
+      roomManager <- Stream.eval(RoomManager.build[F](randomAlg))
       roomIdGen = RoomIdGenerator.build[F]
       eventManager <- Stream.eval(EventManager.build[F](roomManager, roomIdGen))
 

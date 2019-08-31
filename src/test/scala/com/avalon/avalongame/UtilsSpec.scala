@@ -25,7 +25,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
         User(nick),
         User(cory))
 
-    val result = Utils.generateGoodGuysAndBadGuys[IO](users, u => IO.pure(u)).unsafeRunSync()
+    val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
     result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris))
@@ -50,7 +50,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
         User(cory),
         User(matt))
 
-    val result = Utils.generateGoodGuysAndBadGuys[IO](users, u => IO.pure(u)).unsafeRunSync()
+    val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
     result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris))
@@ -77,7 +77,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
         User(cory),
         User(matt))
 
-    val result = Utils.generateGoodGuysAndBadGuys[IO](users, u => IO.pure(u)).unsafeRunSync()
+    val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
     result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris), NormalBadGuy(liran))
@@ -106,7 +106,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
         User(matt),
         User(brian))
 
-    val result = Utils.generateGoodGuysAndBadGuys[IO](users, u => IO.pure(u)).unsafeRunSync()
+    val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
     result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris), NormalBadGuy(liran))
@@ -137,7 +137,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
         User(brian),
         User(austin))
 
-    val result = Utils.generateGoodGuysAndBadGuys[IO](users, u => IO.pure(u)).unsafeRunSync()
+    val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
     result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris), NormalBadGuy(liran))
@@ -176,7 +176,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
         User(brian),
         User(austin))
 
-    val result = Utils.generateGoodGuysAndBadGuys[IO](users, u => IO.pure(u)).unsafeRunSync()
+    val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
     result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris), NormalBadGuy(liran), NormalBadGuy(justin))
