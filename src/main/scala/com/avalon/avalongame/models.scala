@@ -1,5 +1,6 @@
 package com.avalon.avalongame
 
+import cats.data.NonEmptyList
 import cats.{Eq, Show}
 import io.circe.Decoder
 import io.circe._
@@ -57,3 +58,116 @@ object RoomInfo {
 
 case object NoRoomFoundForChatId extends RuntimeException with NoStackTrace
 
+//==================
+//Game stuff
+//==================
+sealed trait GameState
+case object Lobby extends GameState
+case class MissionProposing(missionNumber: Int, missionLeader: User) extends GameState
+case class MissionProposed(voters: NonEmptyList[User]) extends GameState
+
+object GameState {
+  implicit val encoder: Encoder[GameState] = Encoder.instance {
+    case Lobby => Json.obj("state" := "Lobby")
+    case MissionProposing(mn, ml) => Json.obj("state" := "MissionProposing", "currentMission" := mn, "missionLeader" := ml.nickname)
+    case MissionProposed(voters) => Json.obj("state" := "MissionProposing", "voters" := voters)
+  }
+}
+
+sealed abstract case class Mission(players: Option[List[User]], numberOfAdventurers: Int)
+
+object Mission {
+  def make(players: Option[List[User]], numberOfAdventurers: Int): Mission =
+    new Mission(players, numberOfAdventurers){}
+
+  implicit val encoder: Encoder[Mission] = Encoder.instance { m =>
+    Json.obj("players" := m.players, "numberOfAdventurers" := m.numberOfAdventurers)
+  }
+}
+
+sealed abstract case class Missions(one: Mission,
+                                    two: Mission,
+                                    three: Mission,
+                                    four: Mission,
+                                    five: Mission)
+object Missions {
+  def fromPlayers(players: Int): Either[Throwable, Missions] = players match {
+    case 5  =>
+      Right(
+        new Missions(
+          Mission.make(None, 2),
+          Mission.make(None, 3),
+          Mission.make(None, 2),
+          Mission.make(None, 3),
+          Mission.make(None, 3)){})
+    case 6  =>
+      Right(
+        new Missions(
+          Mission.make(None, 2),
+          Mission.make(None, 3),
+          Mission.make(None, 4),
+          Mission.make(None, 3),
+          Mission.make(None, 4)){})
+    case 7  =>
+      Right(
+        new Missions(
+          Mission.make(None, 2),
+          Mission.make(None, 3),
+          Mission.make(None, 3),
+          Mission.make(None, 4),
+          Mission.make(None, 4)){})
+    case 8 | 9 | 10  =>
+      Right(
+        new Missions(
+          Mission.make(None, 3),
+          Mission.make(None, 4),
+          Mission.make(None, 4),
+          Mission.make(None, 5),
+          Mission.make(None, 5)){})
+  }
+
+  implicit val encoder: Encoder[Missions] = Encoder.instance { m =>
+    Json.obj(
+      "one" := m.one,
+      "two" := m.two,
+      "three" := m.three,
+      "four" := m.four,
+      "five" := m.five)
+  }
+}
+
+
+sealed trait Role
+
+sealed trait BadGuy extends Role
+case object Assassin extends BadGuy
+case object NormalBadGuy extends BadGuy
+
+sealed trait GoodGuy extends Role
+case object Merlin extends GoodGuy
+case object NormalGoodGuy extends GoodGuy
+
+sealed trait PlayerRole {
+  def role: Role
+}
+case class GoodPlayerRole(nickname: Nickname, role: GoodGuy) extends PlayerRole
+case class BadPlayerRole(nickname: Nickname, role: BadGuy) extends PlayerRole
+
+object Role {
+  implicit val encoder: Encoder[Role] = Encoder.encodeString.contramap {
+    case Assassin => "Assassin"
+    case NormalBadGuy => "NormalBadGuy"
+    case Merlin => "Merlin"
+    case NormalGoodGuy => "NormalGoodGuy"
+  }
+}
+
+case object NotEnoughPlayers extends RuntimeException with NoStackTrace
+
+case class GameRepresentation(state: GameState,
+                              missions: Missions,
+                              badGuys: List[BadPlayerRole],
+                              goodGuys: List[GoodPlayerRole],
+                              users: List[User]) {
+//  def addBadGuys()
+}

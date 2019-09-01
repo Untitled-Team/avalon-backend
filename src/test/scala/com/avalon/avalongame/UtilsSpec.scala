@@ -28,8 +28,8 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
-    result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris))
-    result.goodGuys should contain allOf(Merlin(carter), NormalGoodGuy(nick), NormalGoodGuy(cory))
+    result.badGuys should contain allOf(BadPlayerRole(taylor, Assassin), BadPlayerRole(chris, NormalBadGuy))
+    result.goodGuys should contain allOf(GoodPlayerRole(carter, Merlin), GoodPlayerRole(nick, NormalGoodGuy), GoodPlayerRole(cory, NormalGoodGuy))
   }
 
   test("Should assign 6 players to roles") {
@@ -53,8 +53,12 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
-    result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris))
-    result.goodGuys should contain allOf(Merlin(carter), NormalGoodGuy(nick), NormalGoodGuy(cory), NormalGoodGuy(matt))
+    result.badGuys should contain allOf(BadPlayerRole(taylor, Assassin), BadPlayerRole(chris, NormalBadGuy))
+    result.goodGuys should contain allOf(
+      GoodPlayerRole(carter, Merlin),
+      GoodPlayerRole(nick, NormalGoodGuy),
+      GoodPlayerRole(cory, NormalGoodGuy),
+      GoodPlayerRole(matt, NormalGoodGuy))
   }
 
   test("Should assign 7 players to roles") {
@@ -80,8 +84,12 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
-    result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris), NormalBadGuy(liran))
-    result.goodGuys should contain allOf(Merlin(carter), NormalGoodGuy(nick), NormalGoodGuy(cory), NormalGoodGuy(matt))
+    result.badGuys should contain allOf(BadPlayerRole(taylor, Assassin), BadPlayerRole(chris, NormalBadGuy), BadPlayerRole(liran, NormalBadGuy))
+    result.goodGuys should contain allOf(
+      GoodPlayerRole(carter, Merlin),
+      GoodPlayerRole(nick, NormalGoodGuy),
+      GoodPlayerRole(cory, NormalGoodGuy),
+      GoodPlayerRole(matt, NormalGoodGuy))
   }
 
   test("Should assign 8 players to roles") {
@@ -109,8 +117,13 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
-    result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris), NormalBadGuy(liran))
-    result.goodGuys should contain allOf(Merlin(carter), NormalGoodGuy(nick), NormalGoodGuy(cory), NormalGoodGuy(matt), NormalGoodGuy(brian))
+    result.badGuys should contain allOf(BadPlayerRole(taylor, Assassin), BadPlayerRole(chris, NormalBadGuy), BadPlayerRole(liran, NormalBadGuy))
+    result.goodGuys should contain allOf(
+      GoodPlayerRole(carter, Merlin),
+      GoodPlayerRole(nick, NormalGoodGuy),
+      GoodPlayerRole(cory, NormalGoodGuy),
+      GoodPlayerRole(matt, NormalGoodGuy),
+      GoodPlayerRole(brian, NormalGoodGuy))
   }
 
   test("Should assign 9 players to roles") {
@@ -140,14 +153,14 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
-    result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris), NormalBadGuy(liran))
+    result.badGuys should contain allOf(BadPlayerRole(taylor, Assassin), BadPlayerRole(chris, NormalBadGuy), BadPlayerRole(liran, NormalBadGuy))
     result.goodGuys should contain allOf(
-      Merlin(carter),
-      NormalGoodGuy(nick),
-      NormalGoodGuy(cory),
-      NormalGoodGuy(matt),
-      NormalGoodGuy(brian),
-      NormalGoodGuy(austin))
+      GoodPlayerRole(carter, Merlin),
+      GoodPlayerRole(nick, NormalGoodGuy),
+      GoodPlayerRole(cory, NormalGoodGuy),
+      GoodPlayerRole(matt, NormalGoodGuy),
+      GoodPlayerRole(brian, NormalGoodGuy),
+      GoodPlayerRole(austin, NormalGoodGuy))
   }
 
   test("Should assign 10 players to roles") {
@@ -179,13 +192,17 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
     (result.badGuys ++ result.goodGuys).size should be(users.size)
-    result.badGuys should contain allOf(Assassin(taylor), NormalBadGuy(chris), NormalBadGuy(liran), NormalBadGuy(justin))
+    result.badGuys should contain allOf(
+      BadPlayerRole(taylor, Assassin),
+      BadPlayerRole(chris, NormalBadGuy),
+      BadPlayerRole(liran, NormalBadGuy),
+      BadPlayerRole(justin, NormalBadGuy))
     result.goodGuys should contain allOf(
-      Merlin(carter),
-      NormalGoodGuy(nick),
-      NormalGoodGuy(cory),
-      NormalGoodGuy(matt),
-      NormalGoodGuy(brian),
-      NormalGoodGuy(austin))
+      GoodPlayerRole(carter, Merlin),
+      GoodPlayerRole(nick, NormalGoodGuy),
+      GoodPlayerRole(cory, NormalGoodGuy),
+      GoodPlayerRole(matt, NormalGoodGuy),
+      GoodPlayerRole(brian, NormalGoodGuy),
+      GoodPlayerRole(austin, NormalGoodGuy))
   }
 }

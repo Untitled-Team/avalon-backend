@@ -19,10 +19,7 @@ object JoinGame {
   implicit val decoder: Decoder[JoinGame] = deriveDecoder
 }
 
-final case class StartGame(roomId: RoomId) extends IncomingEvent
-object StartGame {
-  implicit val decoder: Decoder[StartGame] = deriveDecoder
-}
+case object StartGame extends IncomingEvent
 
 object IncomingEventDecoder {
   implicit val decoder: Decoder[IncomingEvent] = Decoder.instance { hcursor =>
@@ -31,7 +28,7 @@ object IncomingEventDecoder {
       decoded <- eventName match {
         case "CreateGame" => CreateGame.decoder.decodeJson(hcursor.value)
         case "JoinGame"   => JoinGame.decoder.decodeJson(hcursor.value)
-        case "StartGame"  => StartGame.decoder.decodeJson(hcursor.value)
+        case "StartGame"  => Right(StartGame)
       }
     } yield decoded
   }

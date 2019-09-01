@@ -9,10 +9,15 @@ import io.circe.generic.extras.semiauto.deriveUnwrappedEncoder
 import io.circe.syntax._
 import org.http4s.circe._
 import org.http4s.implicits._
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.{FunSuite, Matchers, Status => _}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with enumeratum.ScalacheckInstances {
+
+  implicit val missionsArb: Arbitrary[Missions] = Arbitrary {
+    Gen.chooseNum[Int](5, 10).map(n => IO.fromEither(Missions.fromPlayers(n)).unsafeRunSync())
+  }
 
   test("make sure we can encode GameCreated event") {
     forAll { gameCreated: GameCreated =>
@@ -33,6 +38,14 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       val json = joinedRoomJson(joinedRoom)
 
       json should be(OutgoingEventEncoder.encoder(joinedRoom))
+    }
+  }
+
+  test("make sure we can encode GameStarted event") {
+    forAll { gameStarted: GameStarted =>
+      val json = gameStartedJson(gameStarted)
+
+      json should be(OutgoingEventEncoder.encoder(gameStarted))
     }
   }
 
@@ -57,5 +70,22 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
           "assassin" := joinedRoom.room.config.assassin,
         )
       )
+    )
+
+  def gameStartedJson(gameStarted: GameStarted): Json =
+    Json.obj(
+      "action" := "GameStarted",
+      "state" := gameStarted.state, //need to test this separately
+      "missions" := gameStarted.missions,
+      "playerRole" := gameStarted.playerRole,
+      "users" := gameStarted.users
+
+//        Json.obj(
+//        "users" := Json.fromValues(joinedRoom.room.users.map(u => Json.obj("nickname" := u.nickname))),
+//        "config" := Json.obj(
+//          "merlin" := joinedRoom.room.config.merlin,
+//          "assassin" := joinedRoom.room.config.assassin,
+//        )
+//      )
     )
 }

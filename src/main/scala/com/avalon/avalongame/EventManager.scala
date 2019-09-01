@@ -9,6 +9,8 @@ import com.avalon.avalongame.events._
 import fs2._
 import fs2.concurrent.Queue
 
+import scala.util.control.NoStackTrace
+
 case class UsernameWithSend[F[_]](nickname: Nickname, respond: Queue[F, OutgoingEvent])
 
 trait EventManager[F[_]] {
@@ -18,7 +20,10 @@ trait EventManager[F[_]] {
 case class ConnectionContext(nickname: Nickname, roomId: RoomId)
 
 object EventManager {
+  import Utils._
   val r = scala.util.Random
+
+  case object NoContext extends RuntimeException with NoStackTrace
 
   def build[F[_]: Par](roomManager: RoomManager[F], roomIdGenerator: RoomIdGenerator[F])(implicit F: Concurrent[F]): F[EventManager[F]] =
     Ref.of[F, Map[RoomId, OutgoingManager[F]]](Map.empty).map { outgoingRef =>
@@ -56,7 +61,19 @@ object EventManager {
                   case t => Sync[F].delay(println(s"We encountered an error while joining game for $nickname,  ${t.getStackTrace}"))
                 }
 
-              case StartGame(roomId) => Sync[F].unit
+              case StartGame => F.unit
+                (for {
+                  ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
+                  room          <- roomManager.get(ctx.roomId)
+                  repr          <- room.startGame
+                  outgoingEvent <- representationToGameCreated(ctx.nickname, repr)
+                  mapping       <- outgoingRef.get
+                  outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+                  _             <- outgoing.broadcastUserSpecific(ctx.nickname, representationToGameCreated(_, repr).widen[OutgoingEvent])
+                  _             <- respond.enqueue1(outgoingEvent)
+                } yield ()).onError {
+                  case t => Sync[F].delay(println(s"We encountered an error while starting game for ???,  ${t.getStackTrace}"))
+                }
             }
           }.compile.drain
       }
@@ -64,22 +81,27 @@ object EventManager {
 }
 
 trait OutgoingManager[F[_]] {
+  def add(usernameWithSend: UsernameWithSend[F]): F[Unit]
   //broadcasts message to everyone but the nickname provided
   def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit]
-  def add(usernameWithSend: UsernameWithSend[F]): F[Unit]
+  def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => F[OutgoingEvent]): F[Unit]
 }
 
 object OutgoingManager {
   def build[F[_]: Par](usernameWithSend: UsernameWithSend[F])(implicit F: Concurrent[F]): F[OutgoingManager[F]] =
     Ref.of[F, List[UsernameWithSend[F]]](List(usernameWithSend)).map { ref =>
       new OutgoingManager[F] {
-        override def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit] =
-          ref.get.flatMap { l =>
-            l.filter(_.nickname =!= nickname).parTraverse(_.respond.enqueue1(outgoingEvent))
-          }.void
-
         def add(usernameWithSend: UsernameWithSend[F]): F[Unit] =
           ref.update(usernameWithSend :: _)
+
+        def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit] =
+          broadcastUserSpecific(nickname, _ => F.pure(outgoingEvent))
+
+        def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => F[OutgoingEvent]): F[Unit] = {
+          ref.get.flatMap { l =>
+            l.filter(_.nickname =!= nickname).parTraverse(u => outgoingF(u.nickname).flatMap(u.respond.enqueue1))
+          }.void
+        }
       }
     }
 }

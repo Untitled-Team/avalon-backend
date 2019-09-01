@@ -25,11 +25,16 @@ object UserJoined {
   implicit val encoder: Encoder[UserJoined] = deriveEncoder
 }
 
+case class GameStarted(state: GameState, missions: Missions, playerRole: Role, users: List[User]) extends OutgoingEvent
+object GameStarted {
+  implicit val encoder: Encoder[GameStarted] = deriveEncoder
+}
 
 object OutgoingEventEncoder {
   implicit val encoder: Encoder[OutgoingEvent] = Encoder.instance {
     case g@GameCreated(_) => GameCreated.encoder.apply(g).deepMerge(Json.obj("action" := "GameCreated"))
     case j@JoinedRoom(_) => JoinedRoom.encoder.apply(j).deepMerge(Json.obj("action" := "JoinedRoom")) //maybe reusable as Lobby?
     case u@UserJoined(_) => UserJoined.encoder.apply(u).deepMerge(Json.obj("action" := "UserJoined"))
+    case g@GameStarted(_, _, _, _) => GameStarted.encoder.apply(g).deepMerge(Json.obj("action" := "GameStarted"))
   }
 }
