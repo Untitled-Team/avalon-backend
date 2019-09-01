@@ -61,7 +61,7 @@ object EventManager {
                   case t => Sync[F].delay(println(s"We encountered an error while joining game for $nickname,  ${t.getStackTrace}"))
                 }
 
-              case StartGame => F.unit
+              case StartGame =>
                 (for {
                   ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
                   room          <- roomManager.get(ctx.roomId)

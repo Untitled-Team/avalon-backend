@@ -124,6 +124,8 @@ object Missions {
           Mission.make(None, 4),
           Mission.make(None, 5),
           Mission.make(None, 5)){})
+
+    case _ => Left(NotEnoughPlayers(players))
   }
 
   implicit val encoder: Encoder[Missions] = Encoder.instance { m =>
@@ -162,7 +164,7 @@ object Role {
   }
 }
 
-case object NotEnoughPlayers extends RuntimeException with NoStackTrace
+case class NotEnoughPlayers(playerCount: Int) extends RuntimeException with NoStackTrace
 
 case class GameRepresentation(state: GameState,
                               missions: Missions,

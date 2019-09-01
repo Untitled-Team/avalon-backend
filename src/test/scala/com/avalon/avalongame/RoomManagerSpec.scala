@@ -29,5 +29,4 @@ class RoomManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChec
       room.users.unsafeRunSync() should be(List(user))
     }
   }
-
 }

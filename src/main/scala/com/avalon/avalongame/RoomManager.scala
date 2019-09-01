@@ -43,6 +43,8 @@ trait Room[F[_]] {
   def startGame: F[GameRepresentation]
 }
 
+
+case class NicknameAlreadyInUse(nickname: Nickname) extends RuntimeException with NoStackTrace
 object Room {
 
   case class InternalRoom(users: List[User], gameRepresentation: Option[GameRepresentation])
@@ -56,7 +58,12 @@ object Room {
 
         //need to enforce that this is only possible in certain states!!!!!
         def addUser(user: User): F[Unit] =
-          mvar.take.flatMap(room => mvar.put(room.copy(user :: room.users)))
+          mvar.take.flatMap { room =>
+            if (room.users.map(_.nickname).contains(user.nickname))
+              mvar.put(room) >> F.raiseError(NicknameAlreadyInUse(user.nickname))
+            else
+              mvar.put(room.copy(room.users :+ user))
+          }
 
         def startGame: F[GameRepresentation] =
           mvar.take.flatMap { room =>
@@ -64,7 +71,9 @@ object Room {
               missions      <- F.fromEither(Missions.fromPlayers(room.users.size))
               roles         <- Utils.assignRoles(room.users, randomAlg.shuffle)
               missionLeader <- randomAlg.randomGet(room.users)
-            } yield GameRepresentation(MissionProposing(1, missionLeader), missions, roles.badGuys, roles.goodGuys, room.users))
+              repr          =  GameRepresentation(MissionProposing(1, missionLeader), missions, roles.badGuys, roles.goodGuys, room.users)
+              _             <- mvar.put(room.copy(gameRepresentation = Some(repr)))
+            } yield repr)
               .guaranteeCase {
                 case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
                 case ExitCase.Completed => F.unit

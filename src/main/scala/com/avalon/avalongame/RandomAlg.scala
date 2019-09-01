@@ -7,7 +7,7 @@ import scala.util.control.NoStackTrace
 
 trait RandomAlg[F[_]] {
   def shuffle[A](l: List[A]): F[List[A]]
-  def randomGet[A](l: List[A]): F[A]
+  def randomGet[A](l: List[A]): F[A] //this should be NonEmptyList
 }
 
 object RandomAlg {
