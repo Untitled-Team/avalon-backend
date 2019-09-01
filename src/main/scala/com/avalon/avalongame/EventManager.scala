@@ -15,43 +15,49 @@ trait EventManager[F[_]] {
   def interpret(respond: Queue[F, OutgoingEvent], events: Stream[F, IncomingEvent]): F[Unit]
 }
 
+case class ConnectionContext(nickname: Nickname, roomId: RoomId)
+
 object EventManager {
   val r = scala.util.Random
 
   def build[F[_]: Par](roomManager: RoomManager[F], roomIdGenerator: RoomIdGenerator[F])(implicit F: Concurrent[F]): F[EventManager[F]] =
-    Ref.of[F, Map[RoomId, OutgoingManager[F]]](Map.empty).map { ref =>
+    Ref.of[F, Map[RoomId, OutgoingManager[F]]](Map.empty).map { outgoingRef =>
       new EventManager[F] {
 
         //it's possible we could have two rooms with same Id, but we don't care right now.
         def interpret(respond: Queue[F, OutgoingEvent], events: Stream[F, IncomingEvent]): F[Unit] =
-          events.evalMap {
-            case CreateGame(nickname, config) =>
-              (for {
-                roomId   <- roomIdGenerator.generate
-                _        <- roomManager.create(roomId, config)
-                room     <- roomManager.get(roomId)
-                _        <- room.addUser(User(nickname))
-                outgoing <- OutgoingManager.build[F](UsernameWithSend[F](nickname, respond))
-                _        <- ref.update(_ + (roomId -> outgoing))
-                _        <- respond.enqueue1(GameCreated(roomId))
-              } yield ()).onError {
-                case t => Sync[F].delay(println(s"We encountered an error while creating game for $nickname,  ${t.getStackTrace}"))
-              }
-            case JoinGame(nickname, roomId) =>
-              (for {
-                room     <- roomManager.get(roomId)
-                _        <- room.addUser(User(nickname))
-                mapping  <- ref.get
-                outgoing <- Sync[F].fromOption(mapping.get(roomId), NoRoomFoundForChatId)
-                _        <- outgoing.broadcast(nickname, UserJoined(nickname))
-                _        <- outgoing.add(UsernameWithSend(nickname, respond))
-                roomInfo <- room.info
-                _        <- respond.enqueue1(JoinedRoom(roomInfo))
-              } yield ()).onError {
-                case t => Sync[F].delay(println(s"We encountered an error while joining game for $nickname,  ${t.getStackTrace}"))
-              }
+          Stream.eval(Ref.of[F, Option[ConnectionContext]](None)).flatMap { context =>
+            events.evalMap {
+              case CreateGame(nickname, config) =>
+                (for {
+                  roomId   <- roomIdGenerator.generate
+                  _        <- roomManager.create(roomId, config)
+                  room     <- roomManager.get(roomId)
+                  _        <- room.addUser(User(nickname))
+                  outgoing <- OutgoingManager.build[F](UsernameWithSend[F](nickname, respond))
+                  _        <- outgoingRef.update(_ + (roomId -> outgoing))
+                  _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
+                  _        <- respond.enqueue1(GameCreated(roomId))
+                } yield ()).onError {
+                  case t => Sync[F].delay(println(s"We encountered an error while creating game for $nickname,  ${t.getStackTrace}"))
+                }
+              case JoinGame(nickname, roomId) =>
+                (for {
+                  room     <- roomManager.get(roomId)
+                  _        <- room.addUser(User(nickname))
+                  mapping  <- outgoingRef.get
+                  outgoing <- Sync[F].fromOption(mapping.get(roomId), NoRoomFoundForChatId)
+                  _        <- outgoing.broadcast(nickname, UserJoined(nickname))
+                  _        <- outgoing.add(UsernameWithSend(nickname, respond))
+                  _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
+                  roomInfo <- room.info
+                  _        <- respond.enqueue1(JoinedRoom(roomInfo))
+                } yield ()).onError {
+                  case t => Sync[F].delay(println(s"We encountered an error while joining game for $nickname,  ${t.getStackTrace}"))
+                }
 
-            case StartGame(roomId) => Sync[F].unit
+              case StartGame(roomId) => Sync[F].unit
+            }
           }.compile.drain
       }
     }
