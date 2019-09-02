@@ -92,7 +92,7 @@ object Room {
           mvar.take.flatMap { room =>
             (for {
               repr <- F.fromOption(room.gameRepresentation, GameNotStarted)
-              proposal: MissionProposing <- repr.state match {
+              proposal <- repr.state match {
                 case m@MissionProposing(_, _) => F.pure(m)
                 case _ => F.raiseError(InvalidStateTransition(repr.state, "proposeMission", nickname))
               }

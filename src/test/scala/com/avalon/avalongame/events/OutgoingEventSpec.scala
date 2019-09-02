@@ -45,8 +45,6 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     forAll { gameStarted: GameStarted =>
       val json = gameStartedJson(gameStarted)
 
-      println(json.spaces2)
-
       json should be(OutgoingEventEncoder.encoder(gameStarted))
     }
   }
