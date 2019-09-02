@@ -86,7 +86,7 @@ object GameState {
   }
 }
 
-case class MissionProposal(users: List[User])
+case class MissionProposal(missionNumber: Int, missionLeader: Nickname, users: List[User])
 
 sealed abstract case class Mission(players: Option[List[User]], numberOfAdventurers: Int)
 

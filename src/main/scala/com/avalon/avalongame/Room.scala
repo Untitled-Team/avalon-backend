@@ -13,7 +13,7 @@ trait Room[F[_]] {
   def users: F[List[User]]
   def addUser(user: User): F[Unit]
   def startGame: F[GameRepresentation]
-  def proposeMission(nickname: Nickname, users: List[User]): F[Unit]
+  def proposeMission(nickname: Nickname, users: List[User]): F[MissionProposal]
 }
 
 object Room {
@@ -59,7 +59,7 @@ object Room {
 
         //should verify the users provided are actual users in the game as well......
         //maybe we can store each previous state so we have a full track record of everything that happened
-        def proposeMission(nickname: Nickname, users: List[User]): F[Unit] = {
+        def proposeMission(nickname: Nickname, users: List[User]): F[MissionProposal] = {
           mvar.take.flatMap { room =>
             (for {
               repr <- F.fromOption(room.gameRepresentation, GameNotStarted)
@@ -70,14 +70,14 @@ object Room {
               _ <-
                 if (proposal.missionLeader.nickname === nickname) F.unit
                 else F.raiseError(UserNotMissionLeader(nickname))
-              currentMission <- F.fromEither(Missions.fromInt(repr.missions, users.size))
+              currentMission <- F.fromEither(Missions.fromInt(repr.missions, proposal.missionNumber))
               _ <-
                 if (currentMission.numberOfAdventurers === users.size) F.unit
                 else F.raiseError(InvalidUserCountForMission(users.size))
               _ <- mvar.put {
                 room.copy(gameRepresentation = Some(repr.copy(state = MissionVote(proposal.missionNumber, User(nickname), users))))
               }
-            } yield ())
+            } yield MissionProposal(proposal.missionNumber, proposal.missionLeader.nickname, users))
               .guaranteeCase {
                 case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
                 case ExitCase.Completed => F.unit

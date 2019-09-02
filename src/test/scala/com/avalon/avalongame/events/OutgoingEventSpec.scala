@@ -49,6 +49,14 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     }
   }
 
+  test("make sure we can encode MissionProposalEvent event") {
+    forAll { missionProposalEvent: MissionProposalEvent =>
+      val json = missionProposalEventJson(missionProposalEvent)
+
+      json should be(OutgoingEventEncoder.encoder(missionProposalEvent))
+    }
+  }
+
   def gameCreatedJson(gameCreated: GameCreated): Json =
     Json.obj(
       "action" := "GameCreated",
@@ -79,5 +87,13 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "missions" := gameStarted.missions,
       "playerRole" := gameStarted.playerRole,
       "users" := gameStarted.users
+    )
+
+  def missionProposalEventJson(missionProposalEvent: MissionProposalEvent): Json =
+    Json.obj(
+      "action" := "MissionProposal",
+      "missionNumber" := missionProposalEvent.missionNumber,
+      "missionLeader" := missionProposalEvent.missionLeader,
+      "players" := missionProposalEvent.players
     )
 }
