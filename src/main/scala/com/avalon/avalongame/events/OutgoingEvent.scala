@@ -25,7 +25,7 @@ object UserJoined {
   implicit val encoder: Encoder[UserJoined] = deriveEncoder
 }
 
-case class GameStarted(state: GameState, missions: Missions, playerRole: Role, users: List[User]) extends OutgoingEvent
+case class GameStarted(state: GameState, missions: Missions, playerRole: CharacterRole, users: List[User]) extends OutgoingEvent
 object GameStarted {
   implicit val encoder: Encoder[GameStarted] = deriveEncoder
 }

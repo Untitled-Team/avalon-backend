@@ -46,6 +46,7 @@ object EventManager {
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error while creating game for $nickname,  ${t.getStackTrace}"))
                 }
+
               case JoinGame(nickname, roomId) => //can't do this if ConnectionContext exists
                 (for {
                   room     <- roomManager.get(roomId)
