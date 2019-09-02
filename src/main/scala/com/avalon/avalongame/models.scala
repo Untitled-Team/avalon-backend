@@ -36,7 +36,7 @@ object Nickname {
   implicit val encoder: Encoder[Nickname] = deriveUnwrappedEncoder
 }
 
-final case class User(username: Nickname)
+final case class User(nickname: Nickname)
 
 object User {
   implicit val encoder: Encoder[User] = deriveEncoder

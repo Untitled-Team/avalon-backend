@@ -17,8 +17,6 @@ object AvalongameServer {
   def stream[F[_]: ConcurrentEffect : Par](implicit T: Timer[F], C: ContextShift[F]): Stream[F, Nothing] = {
     for {
       client <- BlazeClientBuilder[F](global).stream
-      helloWorldAlg = HelloWorld.impl[F]
-      jokeAlg = Jokes.impl[F](client)
       roomManager <- Stream.eval(RoomManager.build[F])
       roomIdGen = RoomIdGenerator.build[F]
       eventManager <- Stream.eval(EventManager.build[F](roomManager, roomIdGen))
@@ -27,12 +25,12 @@ object AvalongameServer {
       // Can also be done via a Router if you
       // want to extract a segments not checked
       // in the underlying routes.
-      httpApp = (
-        AvalongameRoutes.helloWorldRoutes[F](helloWorldAlg) <+>
-        AvalongameRoutes.jokeRoutes[F](jokeAlg) <+>
-        AvalongameRoutes.websocketRoutes[F](jokeAlg) <+>
-        AvalongameRoutes.testRoutessss[F](jokeAlg, eventManager)
-      ).orNotFound
+      httpApp = AvalongameRoutes.testRoutessss[F](eventManager)
+        .orNotFound
+//        AvalongameRoutes.helloWorldRoutes[F](helloWorldAlg) <+>
+//        AvalongameRoutes.jokeRoutes[F](jokeAlg) <+>
+//        AvalongameRoutes.websocketRoutes[F](jokeAlg) <+>
+
 
       // With Middlewares in place
       finalHttpApp = Logger.httpApp(true, true)(httpApp)

@@ -51,7 +51,7 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     Json.obj(
       "event" := "JoinedRoom",
       "room" := Json.obj(
-        "users" := joinedRoom.room.users,
+        "users" := Json.fromValues(joinedRoom.room.users.map(u => Json.obj("nickname" := u.nickname))),
         "config" := Json.obj(
           "merlin" := joinedRoom.room.config.merlin,
           "assassin" := joinedRoom.room.config.assassin,
