@@ -23,11 +23,8 @@ object Utils {
   }
 
   //will have to use a config at some point
+  //this can be refactored for sure
   def assignRoles[F[_]](users: List[User], shuffle: List[User] => F[List[User]])(implicit F: Sync[F]): F[Roles] = {
-
-//    import scala.util.control.NoStackTrace
-//
-////    val shuffled: List[User] = scala.util.Random.shuffle(users)
 
     val players: StateT[F, List[User], Roles] =
       users.size match {

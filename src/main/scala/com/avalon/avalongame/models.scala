@@ -57,6 +57,7 @@ object RoomInfo {
 }
 
 case object NoRoomFoundForChatId extends RuntimeException with NoStackTrace
+case class InvalidMissionNumber(n: Int) extends RuntimeException with NoStackTrace
 
 //==================
 //Game stuff
@@ -64,15 +65,24 @@ case object NoRoomFoundForChatId extends RuntimeException with NoStackTrace
 sealed trait GameState
 case object Lobby extends GameState
 case class MissionProposing(missionNumber: Int, missionLeader: User) extends GameState
+case class MissionVote(missionNumber: Int, missionLeader: User, users: List[User]) extends GameState
 case class MissionProposed(voters: NonEmptyList[User]) extends GameState
 
 object GameState {
   implicit val encoder: Encoder[GameState] = Encoder.instance {
     case Lobby => Json.obj("state" := "Lobby")
     case MissionProposing(mn, ml) => Json.obj("state" := "MissionProposing", "currentMission" := mn, "missionLeader" := ml.nickname)
+    case MissionVote(mn, ml, users) =>
+      Json.obj(
+        "state" := "MissionVote",
+        "currentMission" := mn,
+        "missionLeader" := ml.nickname,
+        "users" := users)
     case MissionProposed(voters) => Json.obj("state" := "MissionProposing", "voters" := voters)
   }
 }
+
+case class MissionProposal(users: List[User])
 
 sealed abstract case class Mission(players: Option[List[User]], numberOfAdventurers: Int)
 
@@ -127,6 +137,16 @@ object Missions {
 
     case _ => Left(NotEnoughPlayers(players))
   }
+
+  def fromInt(missions: Missions, n: Int): Either[Throwable, Mission] =
+    n match {
+      case 1 => Right(missions.one)
+      case 2 => Right(missions.two)
+      case 3 => Right(missions.three)
+      case 4 => Right(missions.four)
+      case 5 => Right(missions.five)
+      case _ => Left(InvalidMissionNumber(n))
+    }
 
   implicit val encoder: Encoder[Missions] = Encoder.instance { m =>
     Json.obj(
