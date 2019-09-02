@@ -56,11 +56,15 @@ object RoomInfo {
   implicit val encoder: Encoder[RoomInfo] = deriveEncoder
 }
 
+//==================
+// Errors
+//==================
 case object NoRoomFoundForChatId extends RuntimeException with NoStackTrace
 case class InvalidMissionNumber(n: Int) extends RuntimeException with NoStackTrace
+case class NotEnoughPlayers(playerCount: Int) extends RuntimeException with NoStackTrace
 
 //==================
-//Game stuff
+// Game stuff
 //==================
 sealed trait GameState
 case object Lobby extends GameState
@@ -160,6 +164,14 @@ object Missions {
 
 
 sealed trait Role
+object Role {
+  implicit val encoder: Encoder[Role] = Encoder.encodeString.contramap {
+    case Assassin => "Assassin"
+    case NormalBadGuy => "NormalBadGuy"
+    case Merlin => "Merlin"
+    case NormalGoodGuy => "NormalGoodGuy"
+  }
+}
 
 sealed trait BadGuy extends Role
 case object Assassin extends BadGuy
@@ -175,21 +187,8 @@ sealed trait PlayerRole {
 case class GoodPlayerRole(nickname: Nickname, role: GoodGuy) extends PlayerRole
 case class BadPlayerRole(nickname: Nickname, role: BadGuy) extends PlayerRole
 
-object Role {
-  implicit val encoder: Encoder[Role] = Encoder.encodeString.contramap {
-    case Assassin => "Assassin"
-    case NormalBadGuy => "NormalBadGuy"
-    case Merlin => "Merlin"
-    case NormalGoodGuy => "NormalGoodGuy"
-  }
-}
-
-case class NotEnoughPlayers(playerCount: Int) extends RuntimeException with NoStackTrace
-
 case class GameRepresentation(state: GameState,
                               missions: Missions,
                               badGuys: List[BadPlayerRole],
                               goodGuys: List[GoodPlayerRole],
-                              users: List[User]) {
-//  def addBadGuys()
-}
+                              users: List[User])

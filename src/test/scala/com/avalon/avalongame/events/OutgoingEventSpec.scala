@@ -79,13 +79,5 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "missions" := gameStarted.missions,
       "playerRole" := gameStarted.playerRole,
       "users" := gameStarted.users
-
-//        Json.obj(
-//        "users" := Json.fromValues(joinedRoom.room.users.map(u => Json.obj("nickname" := u.nickname))),
-//        "config" := Json.obj(
-//          "merlin" := joinedRoom.room.config.merlin,
-//          "assassin" := joinedRoom.room.config.assassin,
-//        )
-//      )
     )
 }
