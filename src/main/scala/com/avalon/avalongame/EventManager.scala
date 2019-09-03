@@ -33,7 +33,7 @@ object EventManager {
         def interpret(respond: Queue[F, OutgoingEvent], events: Stream[F, IncomingEvent]): F[Unit] =
           Stream.eval(Ref.of[F, Option[ConnectionContext]](None)).flatMap { context =>
             events.evalMap {
-              case CreateGame(nickname, config) =>
+              case CreateGame(nickname, config) => //can't do this if ConnectionContext exists
                 (for {
                   roomId   <- roomIdGenerator.generate
                   _        <- roomManager.create(roomId, config)
@@ -46,7 +46,8 @@ object EventManager {
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error while creating game for $nickname,  ${t.getStackTrace}"))
                 }
-              case JoinGame(nickname, roomId) =>
+
+              case JoinGame(nickname, roomId) => //can't do this if ConnectionContext exists
                 (for {
                   room     <- roomManager.get(roomId)
                   _        <- room.addUser(User(nickname))
@@ -74,6 +75,19 @@ object EventManager {
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error while starting game for ???,  ${t.getStackTrace}"))
                 }
+
+              case MissionLeaderProposal(players) =>
+                (for {
+                  ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
+                  room          <- roomManager.get(ctx.roomId)
+                  proposal      <- room.proposeMission(ctx.nickname, players.map(User(_)))
+                  outgoingEvent =  MissionProposalEvent(proposal.missionNumber, proposal.missionLeader, proposal.users.map(_.nickname))
+                  mapping       <- outgoingRef.get
+                  outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+                  _             <- outgoing.sendToAll(outgoingEvent)
+                } yield ()).onError {
+                  case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
+                }
             }
           }.compile.drain
       }
@@ -85,6 +99,7 @@ trait OutgoingManager[F[_]] {
   //broadcasts message to everyone but the nickname provided
   def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit]
   def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => F[OutgoingEvent]): F[Unit]
+  def sendToAll(event: OutgoingEvent): F[Unit]
 }
 
 object OutgoingManager {
@@ -97,11 +112,12 @@ object OutgoingManager {
         def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit] =
           broadcastUserSpecific(nickname, _ => F.pure(outgoingEvent))
 
-        def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => F[OutgoingEvent]): F[Unit] = {
+        def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => F[OutgoingEvent]): F[Unit] =
           ref.get.flatMap { l =>
             l.filter(_.nickname =!= nickname).parTraverse(u => outgoingF(u.nickname).flatMap(u.respond.enqueue1))
           }.void
-        }
+
+        def sendToAll(event: OutgoingEvent): F[Unit] = ref.get.flatMap(_.parTraverse(u => u.respond.enqueue1(event))).void
       }
     }
 }

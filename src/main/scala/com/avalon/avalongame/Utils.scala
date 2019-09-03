@@ -19,7 +19,11 @@ object Utils {
       repr.goodGuys.find(_.nickname === nickname) orElse repr.badGuys.find(_.nickname === nickname),
       NoRoleForNickname(nickname))
 
-    playerRole.map(pr => GameStarted(repr.state, repr.missions, pr.role, repr.users))
+
+    playerRole.map { pr =>
+      val charRole = CharacterRole.fromRole(pr.role, repr.badGuys.map(_.nickname))
+      GameStarted(repr.state, repr.missions, charRole, repr.users)
+    }
   }
 
   //will have to use a config at some point
