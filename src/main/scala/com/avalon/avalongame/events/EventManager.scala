@@ -1,11 +1,12 @@
-package com.avalon.avalongame
+package com.avalon.avalongame.events
 
 import cats.implicits._
 import cats.effect._
 import cats.effect.concurrent.Ref
 import cats.effect.implicits._
 import cats.temp.par._
-import com.avalon.avalongame.events._
+import com.avalon.avalongame.common._
+import com.avalon.avalongame.room.{RoomIdGenerator, RoomManager}
 import fs2._
 import fs2.concurrent.Queue
 

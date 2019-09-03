@@ -1,6 +1,7 @@
-package com.avalon.avalongame
+package com.avalon.avalongame.room
 
 import cats.effect.Sync
+import com.avalon.avalongame.common._
 
 trait RoomIdGenerator[F[_]] {
   def generate: F[RoomId]

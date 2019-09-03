@@ -3,6 +3,9 @@ package com.avalon.avalongame
 import cats.effect.{ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
 import cats.temp.par.Par
+import com.avalon.avalongame.common._
+import com.avalon.avalongame.events.EventManager
+import com.avalon.avalongame.room._
 import fs2.Stream
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.implicits._

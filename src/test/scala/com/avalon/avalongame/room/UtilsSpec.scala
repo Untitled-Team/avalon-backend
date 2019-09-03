@@ -1,11 +1,11 @@
-package com.avalon.avalongame
+package com.avalon.avalongame.room
 
 import cats.effect.{ContextShift, IO}
+import com.avalon.avalongame.common._
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with enumeratum.ScalacheckInstances {
-  import com.mrdziuban.ScalacheckMagnolia._
 
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.Implicits.global)
 

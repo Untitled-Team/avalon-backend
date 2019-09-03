@@ -1,14 +1,14 @@
-package com.avalon.avalongame
+package com.avalon.avalongame.room
 
 import cats.effect.{ContextShift, IO, Timer}
-import com.avalon.avalongame.Room._
+import com.avalon.avalongame.common._
+import com.avalon.avalongame.RandomAlg
+import com.mrdziuban.ScalacheckMagnolia._
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-
-import scala.concurrent.duration._
+import Room._
 
 class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with enumeratum.ScalacheckInstances {
-  import com.mrdziuban.ScalacheckMagnolia._
 
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.Implicits.global)
   implicit val t: Timer[IO] = IO.timer(scala.concurrent.ExecutionContext.Implicits.global)

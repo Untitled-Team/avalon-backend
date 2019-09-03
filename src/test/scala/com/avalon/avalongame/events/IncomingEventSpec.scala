@@ -3,6 +3,7 @@ package events
 
 import cats.implicits._
 import cats.effect.{ContextShift, IO}
+import com.avalon.avalongame.common._
 import com.mrdziuban.ScalacheckMagnolia._
 import io.circe._
 import io.circe.generic.extras.semiauto.deriveUnwrappedEncoder

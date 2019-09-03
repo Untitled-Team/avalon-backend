@@ -1,10 +1,11 @@
-package com.avalon.avalongame
+package com.avalon.avalongame.room
 
 import cats.effect._
 import cats.effect.concurrent.MVar
 import cats.effect.implicits._
 import cats.implicits._
-import fs2._
+import com.avalon.avalongame.RandomAlg
+import com.avalon.avalongame.common._
 
 import scala.util.control.NoStackTrace
 
@@ -18,13 +19,6 @@ trait Room[F[_]] {
 
 object Room {
 
-  case class NicknameAlreadyInUse(nickname: Nickname) extends RuntimeException with NoStackTrace
-  case object GameNotStarted extends RuntimeException with NoStackTrace
-  case class InvalidStateTransition(gameState: GameState, to: String, nickname: Nickname) extends RuntimeException with NoStackTrace
-  case class UserNotMissionLeader(nickname: Nickname) extends RuntimeException with NoStackTrace
-  case class InvalidUserCountForMission(n: Int) extends RuntimeException with NoStackTrace
-
-  case class InternalRoom(users: List[User], gameRepresentation: Option[GameRepresentation])
   //timeouts on get/reads?
   def build[F[_]](randomAlg: RandomAlg[F], roomId: RoomId, config: GameConfig)(implicit F: Concurrent[F]): F[Room[F]] =
     MVar.of(InternalRoom(Nil, None)).map { mvar =>

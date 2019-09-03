@@ -1,8 +1,9 @@
-package com.avalon.avalongame
+package com.avalon.avalongame.events
 
-import cats.effect.concurrent.{MVar, Ref}
 import cats.effect.{ContextShift, IO, Timer}
-import com.avalon.avalongame.events._
+import com.avalon.avalongame.RandomAlg
+import com.avalon.avalongame.common._
+import com.avalon.avalongame.room._
 import fs2._
 import fs2.concurrent.Queue
 import org.scalatest.{FunSuite, Matchers}

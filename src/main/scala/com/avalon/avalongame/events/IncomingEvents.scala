@@ -1,7 +1,7 @@
 package com.avalon.avalongame
 package events
 
-import com.avalon.avalongame.RoomId
+import com.avalon.avalongame.common._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
 import io.circe.{Encoder, _}

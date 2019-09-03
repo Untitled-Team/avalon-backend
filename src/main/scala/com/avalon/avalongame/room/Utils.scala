@@ -1,9 +1,10 @@
-package com.avalon.avalongame
+package com.avalon.avalongame.room
 
 import cats.data.StateT
 import cats.effect.Sync
 import cats.implicits._
-import com.avalon.avalongame.events.{GameCreated, GameStarted}
+import com.avalon.avalongame.common._
+import com.avalon.avalongame.events.GameStarted
 
 import scala.util.control.NoStackTrace
 
@@ -12,19 +13,9 @@ case object TooFewOfPlayers extends RuntimeException with NoStackTrace
 
 object Utils {
 
-  case class NoRoleForNickname(nickname: Nickname) extends RuntimeException with NoStackTrace
-
-  def representationToGameCreated[F[_]](nickname: Nickname, repr: GameRepresentation)(implicit F: Sync[F]): F[GameStarted] = {
-    val playerRole: F[PlayerRole] = F.fromOption(
-      repr.goodGuys.find(_.nickname === nickname) orElse repr.badGuys.find(_.nickname === nickname),
-      NoRoleForNickname(nickname))
 
 
-    playerRole.map { pr =>
-      val charRole = CharacterRole.fromRole(pr.role, repr.badGuys.map(_.nickname))
-      GameStarted(repr.state, repr.missions, charRole, repr.users)
-    }
-  }
+
 
   //will have to use a config at some point
   //this can be refactored for sure

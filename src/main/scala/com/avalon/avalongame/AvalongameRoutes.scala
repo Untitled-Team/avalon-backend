@@ -2,7 +2,7 @@ package com.avalon.avalongame
 
 import cats.effect.{Concurrent, Sync, Timer}
 import cats.implicits._
-import com.avalon.avalongame.events.{IncomingEventDecoder, IncomingEvent, OutgoingEvent, OutgoingEventEncoder}
+import com.avalon.avalongame.events._
 import fs2.Stream
 import fs2.concurrent.Queue
 import io.circe.Encoder

@@ -1,13 +1,10 @@
-package com.avalon.avalongame
+package com.avalon.avalongame.room
 
-import cats.data.{NonEmptyList, State, StateT}
 import cats.effect._
-import cats.effect.concurrent.{MVar, Ref}
-import cats.effect.implicits._
+import cats.effect.concurrent.Ref
 import cats.implicits._
-import fs2._
-
-import scala.util.control.NoStackTrace
+import com.avalon.avalongame.RandomAlg
+import com.avalon.avalongame.common._
 
 trait RoomManager[F[_]] {
   def create(roomId: RoomId, config: GameConfig): F[Unit]
