@@ -2,6 +2,8 @@ package com.avalon.avalongame.room
 
 import cats.data.NonEmptyList
 import com.avalon.avalongame.common._
+import com.avalon.avalongame.events.MissionProposalVote
+
 import scala.util.control.NoStackTrace
 
 //==================
@@ -22,7 +24,7 @@ case object GameNotStarted extends RuntimeException with NoStackTrace
 sealed trait GameState
 case object Lobby extends GameState
 case class MissionProposing(missionNumber: Int, missionLeader: User) extends GameState
-case class MissionVote(missionNumber: Int, missionLeader: User, users: List[User]) extends GameState
+case class MissionVoting(missionNumber: Int, missionLeader: User, users: List[User], votes: List[MissionProposalVote]) extends GameState
 case class MissionProposed(voters: NonEmptyList[User]) extends GameState
 
 case class MissionProposal(missionNumber: Int, missionLeader: Nickname, users: List[User])

@@ -15,6 +15,7 @@ trait Room[F[_]] {
   def addUser(user: User): F[Unit]
   def startGame: F[GameRepresentation]
   def proposeMission(nickname: Nickname, users: List[User]): F[MissionProposal]
+  def vote(nickname: Nickname, vote: Vote): F[Unit]
 }
 
 object Room {
@@ -53,7 +54,7 @@ object Room {
 
         //should verify the users provided are actual users in the game as well......
         //maybe we can store each previous state so we have a full track record of everything that happened
-        def proposeMission(nickname: Nickname, users: List[User]): F[MissionProposal] = {
+        def proposeMission(nickname: Nickname, users: List[User]): F[MissionProposal] =
           mvar.take.flatMap { room =>
             (for {
               repr <- F.fromOption(room.gameRepresentation, GameNotStarted)
@@ -69,7 +70,7 @@ object Room {
                 if (currentMission.numberOfAdventurers === users.size) F.unit
                 else F.raiseError(InvalidUserCountForMission(users.size))
               _ <- mvar.put {
-                room.copy(gameRepresentation = Some(repr.copy(state = MissionVote(proposal.missionNumber, User(nickname), users))))
+                room.copy(gameRepresentation = Some(repr.copy(state = MissionVoting(proposal.missionNumber, User(nickname), users, Nil))))
               }
             } yield MissionProposal(proposal.missionNumber, proposal.missionLeader.nickname, users))
               .guaranteeCase {
@@ -77,7 +78,12 @@ object Room {
                 case ExitCase.Completed => F.unit
               }
           }
-        }
+
+        def vote(nickname: Nickname, vote: Vote): F[Unit] = F.unit
+//          mvar.take.flatMap { room =>
+//
+//          }
+
       }
     }
 }

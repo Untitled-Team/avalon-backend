@@ -12,12 +12,13 @@ object EventEncoders {
   implicit val gameStateEncoder: Encoder[GameState] = Encoder.instance {
     case Lobby => Json.obj("state" := "Lobby")
     case MissionProposing(mn, ml) => Json.obj("state" := "MissionProposing", "currentMission" := mn, "missionLeader" := ml.nickname)
-    case MissionVote(mn, ml, users) =>
+    case MissionVoting(mn, ml, users, v) =>
       Json.obj(
-        "state" := "MissionVote",
+        "state" := "MissionVoting",
         "currentMission" := mn,
         "missionLeader" := ml.nickname,
-        "users" := users)
+        "users" := users,
+        "votes" := v)
     case MissionProposed(voters) => Json.obj("state" := "MissionProposing", "voters" := voters)
   }
 

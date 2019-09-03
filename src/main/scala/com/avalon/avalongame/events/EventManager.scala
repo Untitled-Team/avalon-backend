@@ -89,6 +89,8 @@ object EventManager {
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
                 }
+
+              case MissionProposalVote(_, _) => F.unit
             }
           }.compile.drain
       }

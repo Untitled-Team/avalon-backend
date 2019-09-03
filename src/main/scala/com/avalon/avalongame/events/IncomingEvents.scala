@@ -26,6 +26,12 @@ object MissionLeaderProposal {
   implicit val decoder: Decoder[MissionLeaderProposal] = deriveDecoder
 }
 
+case class MissionProposalVote(nickname: Nickname, vote: Vote) extends IncomingEvent
+object MissionProposalVote {
+  implicit val encoder: Encoder[MissionProposalVote] = deriveEncoder
+  implicit val decoder: Decoder[MissionProposalVote] = deriveDecoder
+}
+
 object IncomingEventDecoder {
   implicit val decoder: Decoder[IncomingEvent] = Decoder.instance { hcursor =>
     for {
@@ -35,6 +41,7 @@ object IncomingEventDecoder {
         case "JoinGame"   => JoinGame.decoder.decodeJson(hcursor.value)
         case "StartGame"  => Right(StartGame)
         case "MissionLeaderProposal" => MissionLeaderProposal.decoder.decodeJson(hcursor.value)
+        case "MissionProposalVote" => MissionProposalVote.decoder.decodeJson(hcursor.value)
       }
     } yield decoded
   }

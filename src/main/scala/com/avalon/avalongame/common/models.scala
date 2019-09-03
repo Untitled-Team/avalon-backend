@@ -58,3 +58,9 @@ object RoomInfo {
 }
 
 case object NoRoomFoundForChatId extends RuntimeException with NoStackTrace
+
+case class Vote(value: Boolean) extends AnyVal
+object Vote {
+  implicit val decoder: Decoder[Vote] = deriveUnwrappedDecoder
+  implicit val encoder: Encoder[Vote] = deriveUnwrappedEncoder
+}
