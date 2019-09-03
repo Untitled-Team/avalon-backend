@@ -24,7 +24,6 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       badGuys <- Gen.listOf[Nickname](Arbitrary.arbitrary[Nickname])
       role <- Arbitrary.arbitrary[Role]
     } yield CharacterRole.fromRole(role, badGuys)
-//    Gen.chooseNum[Int](5, 10).map(n => IO.fromEither(Missions.fromPlayers(n)).unsafeRunSync())
   }
 
   test("make sure we can encode GameCreated event") {
