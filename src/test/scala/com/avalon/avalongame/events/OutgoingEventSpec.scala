@@ -9,10 +9,22 @@ import io.circe.generic.extras.semiauto.deriveUnwrappedEncoder
 import io.circe.syntax._
 import org.http4s.circe._
 import org.http4s.implicits._
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.{FunSuite, Matchers, Status => _}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with enumeratum.ScalacheckInstances {
+
+  implicit val missionsArb: Arbitrary[Missions] = Arbitrary {
+    Gen.chooseNum[Int](5, 10).map(n => IO.fromEither(Missions.fromPlayers(n)).unsafeRunSync())
+  }
+
+  implicit val characterRole: Arbitrary[CharacterRole] = Arbitrary {
+    for {
+      badGuys <- Gen.listOf[Nickname](Arbitrary.arbitrary[Nickname])
+      role <- Arbitrary.arbitrary[Role]
+    } yield CharacterRole.fromRole(role, badGuys)
+  }
 
   test("make sure we can encode GameCreated event") {
     forAll { gameCreated: GameCreated =>
@@ -36,20 +48,36 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     }
   }
 
+  test("make sure we can encode GameStarted event") {
+    forAll { gameStarted: GameStarted =>
+      val json = gameStartedJson(gameStarted)
+
+      json should be(OutgoingEventEncoder.encoder(gameStarted))
+    }
+  }
+
+  test("make sure we can encode MissionProposalEvent event") {
+    forAll { missionProposalEvent: MissionProposalEvent =>
+      val json = missionProposalEventJson(missionProposalEvent)
+
+      json should be(OutgoingEventEncoder.encoder(missionProposalEvent))
+    }
+  }
+
   def gameCreatedJson(gameCreated: GameCreated): Json =
     Json.obj(
-      "event" := "GameCreated",
+      "action" := "GameCreated",
       "roomId" := gameCreated.roomId.value
     )
 
   def userJoinedJson(userJoined: UserJoined): Json =
     Json.obj(
-      "event" := "UserJoined",
+      "action" := "UserJoined",
       "nickname" := userJoined.nickname.value)
 
   def joinedRoomJson(joinedRoom: JoinedRoom): Json =
     Json.obj(
-      "event" := "JoinedRoom",
+      "action" := "JoinedRoom",
       "room" := Json.obj(
         "users" := Json.fromValues(joinedRoom.room.users.map(u => Json.obj("nickname" := u.nickname))),
         "config" := Json.obj(
@@ -57,5 +85,25 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
           "assassin" := joinedRoom.room.config.assassin,
         )
       )
+    )
+
+  def gameStartedJson(gameStarted: GameStarted): Json =
+    Json.obj(
+      "action" := "GameStarted",
+      "state" := gameStarted.state, //need to test this separately
+      "missions" := gameStarted.missions,
+      "playerRole" := Json.obj(
+        "character" := gameStarted.playerRole.character,
+        "badGuys" := gameStarted.playerRole.badGuys
+      ),
+      "users" := gameStarted.users
+    )
+
+  def missionProposalEventJson(missionProposalEvent: MissionProposalEvent): Json =
+    Json.obj(
+      "action" := "MissionProposal",
+      "missionNumber" := missionProposalEvent.missionNumber,
+      "missionLeader" := missionProposalEvent.missionLeader,
+      "players" := missionProposalEvent.players
     )
 }

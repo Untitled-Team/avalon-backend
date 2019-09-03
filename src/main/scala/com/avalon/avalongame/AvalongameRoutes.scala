@@ -31,11 +31,12 @@ object AvalongameRoutes {
                 for {
                   parsedJson <- Sync[F].fromEither(parse(Text(wsf.data).str))
                   decodedEvent <- Sync[F].fromEither(IncomingEventDecoder.decoder.decodeJson(parsedJson))
-
                 } yield decodedEvent
               }
 
-              Stream.eval(eventManager.interpret(q, eventsStream)).handleError(_ => ())
+              Stream.eval(eventManager.interpret(q, eventsStream)).handleErrorWith { _ =>
+                Stream.eval(Concurrent[F].delay(println("Failed to decode incoming event")))
+              }
             }
           )
         }

@@ -9,10 +9,16 @@ class RoomManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChec
 
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.Implicits.global)
 
+  val mockRandomAlg: RandomAlg[IO] = new RandomAlg[IO] {
+    override def shuffle[A](l: List[A]): IO[List[A]] = IO.pure(l)
+
+    override def randomGet[A](l: List[A]): IO[A] = IO(l.head) //oops
+  }
+
   test("Create and update the room manager, alongside some room tests") {
     forAll { (chatId: RoomId, user: User, config: GameConfig) =>
 
-      val roomManager = RoomManager.build[IO].unsafeRunSync()
+      val roomManager = RoomManager.build[IO](mockRandomAlg).unsafeRunSync()
 
       roomManager.create(chatId, config).unsafeRunSync()
 
@@ -23,5 +29,4 @@ class RoomManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChec
       room.users.unsafeRunSync() should be(List(user))
     }
   }
-
 }

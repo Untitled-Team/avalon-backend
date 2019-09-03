@@ -17,7 +17,8 @@ object AvalongameServer {
   def stream[F[_]: ConcurrentEffect : Par](implicit T: Timer[F], C: ContextShift[F]): Stream[F, Nothing] = {
     for {
       client <- BlazeClientBuilder[F](global).stream
-      roomManager <- Stream.eval(RoomManager.build[F])
+      randomAlg = RandomAlg.build[F]
+      roomManager <- Stream.eval(RoomManager.build[F](randomAlg))
       roomIdGen = RoomIdGenerator.build[F]
       eventManager <- Stream.eval(EventManager.build[F](roomManager, roomIdGen))
 
@@ -36,7 +37,7 @@ object AvalongameServer {
       finalHttpApp = Logger.httpApp(true, true)(httpApp)
 
       exitCode <- BlazeServerBuilder[F]
-        .bindHttp(8080, "0.0.0.0")
+        .bindHttp(8000, "0.0.0.0")
         .withHttpApp(finalHttpApp)
         .serve
     } yield exitCode
