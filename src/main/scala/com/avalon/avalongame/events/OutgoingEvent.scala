@@ -29,10 +29,6 @@ object UserJoined {
 
 case class GameStarted(state: GameState, missions: Missions, playerRole: CharacterRole, users: List[User]) extends OutgoingEvent
 object GameStarted {
-  implicitly[Encoder[GameState]]
-  implicitly[Encoder[Missions]]
-  implicitly[Encoder[CharacterRole]]
-//  implicitly[List[User]]
   implicit val encoder: Encoder[GameStarted] = deriveEncoder
 }
 
