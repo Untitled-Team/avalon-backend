@@ -19,6 +19,13 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     Gen.chooseNum[Int](5, 10).map(n => IO.fromEither(Missions.fromPlayers(n)).unsafeRunSync())
   }
 
+  implicit val characterRole: Arbitrary[CharacterRole] = Arbitrary {
+    for {
+      badGuys <- Gen.listOf[Nickname](Arbitrary.arbitrary[Nickname])
+      role <- Arbitrary.arbitrary[Role]
+    } yield CharacterRole.fromRole(role, badGuys)
+  }
+
   test("make sure we can encode GameCreated event") {
     forAll { gameCreated: GameCreated =>
       val json = gameCreatedJson(gameCreated)
@@ -85,7 +92,10 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "action" := "GameStarted",
       "state" := gameStarted.state, //need to test this separately
       "missions" := gameStarted.missions,
-      "playerRole" := gameStarted.playerRole,
+      "playerRole" := Json.obj(
+        "character" := gameStarted.playerRole.character,
+        "badGuys" := gameStarted.playerRole.badGuys
+      ),
       "users" := gameStarted.users
     )
 

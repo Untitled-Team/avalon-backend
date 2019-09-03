@@ -151,7 +151,10 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
 
         val resultMissions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
         val users = List(User(nickname1), User(nickname2), User(nickname3), User(nickname4), User(nickname5))
-        def gameStarted(role: Role) = GameStarted(MissionProposing(1, User(nickname1)), resultMissions, role, users)
+        def gameStarted(role: Role) = {
+          val charRole = CharacterRole.fromRole(role, List(nickname1, nickname2))
+          GameStarted(MissionProposing(1, User(nickname1)), resultMissions, charRole, users)
+        }
 
         userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(gameStarted(Assassin))
         userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(gameStarted(NormalBadGuy))
