@@ -2,6 +2,7 @@ package com.avalon.avalongame
 
 import cats.data.NonEmptyList
 import cats.{Eq, Show}
+import com.avalon.avalongame.events.MissionProposalVote
 import io.circe.Decoder
 import io.circe._
 import io.circe.generic.semiauto._
@@ -69,19 +70,20 @@ case class NotEnoughPlayers(playerCount: Int) extends RuntimeException with NoSt
 sealed trait GameState
 case object Lobby extends GameState
 case class MissionProposing(missionNumber: Int, missionLeader: User) extends GameState
-case class MissionVote(missionNumber: Int, missionLeader: User, users: List[User]) extends GameState
+case class MissionVoting(missionNumber: Int, missionLeader: User, users: List[User], votes: List[MissionProposalVote]) extends GameState
 case class MissionProposed(voters: NonEmptyList[User]) extends GameState
 
 object GameState {
   implicit val encoder: Encoder[GameState] = Encoder.instance {
     case Lobby => Json.obj("state" := "Lobby")
     case MissionProposing(mn, ml) => Json.obj("state" := "MissionProposing", "currentMission" := mn, "missionLeader" := ml.nickname)
-    case MissionVote(mn, ml, users) =>
+    case MissionVoting(mn, ml, users, v) =>
       Json.obj(
-        "state" := "MissionVote",
+        "state" := "MissionVoting",
         "currentMission" := mn,
         "missionLeader" := ml.nickname,
-        "users" := users)
+        "users" := users,
+        "votes" := v)
     case MissionProposed(voters) => Json.obj("state" := "MissionProposing", "voters" := voters)
   }
 }
@@ -210,3 +212,9 @@ case class GameRepresentation(state: GameState,
                               badGuys: List[BadPlayerRole],
                               goodGuys: List[GoodPlayerRole],
                               users: List[User])
+
+case class Vote(value: Boolean) extends AnyVal
+object Vote {
+  implicit val decoder: Decoder[Vote] = deriveUnwrappedDecoder
+  implicit val encoder: Encoder[Vote] = deriveUnwrappedEncoder
+}
