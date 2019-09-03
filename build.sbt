@@ -38,6 +38,8 @@ lazy val root = (project in file("."))
     addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.0")
   )
 
+enablePlugins(DockerPlugin)
+
 scalacOptions ++= Seq(
   "-deprecation",
   "-encoding", "UTF-8",
@@ -47,3 +49,28 @@ scalacOptions ++= Seq(
   "-Ypartial-unification",
   "-Xfatal-warnings",
 )
+
+dockerfile in docker := {
+  // The assembly task generates a fat JAR file
+  val artifact: File = assembly.value
+  val artifactTargetPath = s"/app/${artifact.name}"
+
+  new Dockerfile {
+    from("openjdk:8-jre")
+    add(artifact, artifactTargetPath)
+//    env("IS_PRODUCTION", "true")
+    entryPoint(
+      "java",
+      "-server",
+      "-Xms150m",
+      "-Xmx150m",
+      "-XX:NewRatio=2",
+      "-XX:+UseConcMarkSweepGC",
+      "-XX:+CMSParallelRemarkEnabled",
+      "-XX:+AlwaysPreTouch",
+      "-XX:+HeapDumpOnOutOfMemoryError",
+      "-jar",
+      artifactTargetPath)
+    expose(8000, 80)
+  }
+}

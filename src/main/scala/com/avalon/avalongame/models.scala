@@ -86,7 +86,7 @@ object GameState {
   }
 }
 
-case class MissionProposal(users: List[User])
+case class MissionProposal(missionNumber: Int, missionLeader: Nickname, users: List[User])
 
 sealed abstract case class Mission(players: Option[List[User]], numberOfAdventurers: Int)
 
@@ -170,6 +170,24 @@ object Role {
     case NormalBadGuy => "NormalBadGuy"
     case Merlin => "Merlin"
     case NormalGoodGuy => "NormalGoodGuy"
+  }
+}
+
+sealed abstract case class CharacterRole(character: Role, badGuys: Option[List[Nickname]])
+
+object CharacterRole {
+  def fromRole(role: Role, badGuys: List[Nickname]): CharacterRole =
+    role match {
+      case Assassin => new CharacterRole(Assassin, Some(badGuys)){}
+      case NormalBadGuy => new CharacterRole(NormalBadGuy, Some(badGuys)){}
+      case Merlin => new CharacterRole(Merlin, Some(badGuys)){}
+      case NormalGoodGuy => new CharacterRole(NormalGoodGuy, None){}
+    }
+
+  implicit val encoder: Encoder[CharacterRole] = Encoder.instance { m =>
+    Json.obj(
+      "character" := m.character,
+      "badGuys" := m.badGuys)
   }
 }
 

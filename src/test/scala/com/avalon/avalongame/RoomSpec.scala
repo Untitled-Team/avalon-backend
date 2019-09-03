@@ -1,6 +1,7 @@
 package com.avalon.avalongame
 
 import cats.effect.{ContextShift, IO, Timer}
+import com.avalon.avalongame.Room._
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
@@ -67,7 +68,7 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
     }
   }
 
-  test("Successfully start game of 5 players") {
+  test("Fail if we pass in the wrong number of users") {
     forAll { (roomId: RoomId, config: GameConfig) =>
 
       val user1 = User(Nickname("Taylor"))
@@ -86,17 +87,61 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
       room.addUser(user4).unsafeRunSync()
       room.addUser(user5).unsafeRunSync()
 
-      val resultMissions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
-      room.startGame.unsafeRunSync() should be(
-        GameRepresentation(
-          MissionProposing(1, user1),
-          resultMissions,
-          List(BadPlayerRole(user1.nickname, Assassin), BadPlayerRole(user2.nickname, NormalBadGuy)),
-          List(GoodPlayerRole(user3.nickname, Merlin), GoodPlayerRole(user4.nickname, NormalGoodGuy), GoodPlayerRole(user5.nickname, NormalGoodGuy)),
-          users)
-      )
+      room.startGame.unsafeRunSync()
 
-      room.users.timeout(1 second).unsafeRunSync() should be(users)
+      room.proposeMission(user1.nickname, users.take(3)).attempt.unsafeRunSync() should be(Left(InvalidUserCountForMission(3)))
+    }
+  }
+
+  test("Fail if the wrong user tries to propose a mission") {
+    forAll { (roomId: RoomId, config: GameConfig) =>
+
+      val user1 = User(Nickname("Taylor"))
+      val user2 = User(Nickname("Nick"))
+      val user3 = User(Nickname("Chris"))
+      val user4 = User(Nickname("Carter"))
+      val user5 = User(Nickname("Austin"))
+
+      val users = List(user1, user2, user3, user4, user5)
+
+      val room = Room.build(mockRandomAlg, roomId, config).unsafeRunSync()
+
+      room.addUser(user1).unsafeRunSync()
+      room.addUser(user2).unsafeRunSync()
+      room.addUser(user3).unsafeRunSync()
+      room.addUser(user4).unsafeRunSync()
+      room.addUser(user5).unsafeRunSync()
+
+      room.startGame.unsafeRunSync()
+
+      room.proposeMission(user2.nickname, users.take(2)).attempt.unsafeRunSync() should be(Left(UserNotMissionLeader(user2.nickname)))
+    }
+  }
+
+  test("Successfully propose the mission if we have valid missionLeader and valid user count") {
+    forAll { (roomId: RoomId, config: GameConfig) =>
+
+      val user1 = User(Nickname("Taylor"))
+      val user2 = User(Nickname("Nick"))
+      val user3 = User(Nickname("Chris"))
+      val user4 = User(Nickname("Carter"))
+      val user5 = User(Nickname("Austin"))
+
+      val users = List(user1, user2, user3, user4, user5)
+
+      val room = Room.build(mockRandomAlg, roomId, config).unsafeRunSync()
+
+      room.addUser(user1).unsafeRunSync()
+      room.addUser(user2).unsafeRunSync()
+      room.addUser(user3).unsafeRunSync()
+      room.addUser(user4).unsafeRunSync()
+      room.addUser(user5).unsafeRunSync()
+
+      room.startGame.unsafeRunSync()
+
+      val proposal = room.proposeMission(user1.nickname, users.take(2)).attempt.unsafeRunSync()
+
+      proposal should be(Right(MissionProposal(1, user1.nickname, users.take(2))))
     }
   }
 }
