@@ -77,12 +77,12 @@ object EventManager {
                   case t => Sync[F].delay(println(s"We encountered an error while starting game for ???,  ${t.getStackTrace}"))
                 }
 
-              case MissionLeaderProposal(players) =>
+              case TeamAssignment(players) =>
                 (for {
                   ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
                   room          <- roomManager.get(ctx.roomId)
                   proposal      <- room.proposeMission(ctx.nickname, players.map(User(_)))
-                  outgoingEvent =  MissionProposalEvent(proposal.missionNumber, proposal.missionLeader, proposal.users.map(_.nickname))
+                  outgoingEvent =  TeamAssignmentEvent(proposal.missionNumber, proposal.missionLeader, proposal.users.map(_.nickname))
                   mapping       <- outgoingRef.get
                   outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
                   _             <- outgoing.sendToAll(outgoingEvent)
@@ -90,7 +90,7 @@ object EventManager {
                   case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
                 }
 
-              case MissionProposalVote(_, _) => F.unit
+              case TeamAssignmentVote(_, _) => F.unit
             }
           }.compile.drain
       }
