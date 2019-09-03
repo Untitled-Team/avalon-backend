@@ -19,15 +19,16 @@ object Utils {
       repr.goodGuys.find(_.nickname === nickname) orElse repr.badGuys.find(_.nickname === nickname),
       NoRoleForNickname(nickname))
 
-    playerRole.map(pr => GameStarted(repr.state, repr.missions, pr.role, repr.users))
+
+    playerRole.map { pr =>
+      val charRole = CharacterRole.fromRole(pr.role, repr.badGuys.map(_.nickname))
+      GameStarted(repr.state, repr.missions, charRole, repr.users)
+    }
   }
 
   //will have to use a config at some point
+  //this can be refactored for sure
   def assignRoles[F[_]](users: List[User], shuffle: List[User] => F[List[User]])(implicit F: Sync[F]): F[Roles] = {
-
-//    import scala.util.control.NoStackTrace
-//
-////    val shuffled: List[User] = scala.util.Random.shuffle(users)
 
     val players: StateT[F, List[User], Roles] =
       users.size match {
