@@ -39,11 +39,12 @@ object EventManager {
                   roomId   <- roomIdGenerator.generate
                   _        <- roomManager.create(roomId, config)
                   room     <- roomManager.get(roomId)
-                  _        <- room.addUser(User(nickname))
+                  _        <- room.addUser(nickname)
                   outgoing <- OutgoingManager.build[F](UsernameWithSend[F](nickname, respond))
                   _        <- outgoingRef.update(_ + (roomId -> outgoing))
                   _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
-                  _        <- respond.enqueue1(GameCreated(roomId))
+                  players  <- room.players
+                  _        <- respond.enqueue1(MoveToLobby(roomId, players))
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error while creating game for $nickname,  ${t.getStackTrace}"))
                 }
@@ -51,14 +52,14 @@ object EventManager {
               case JoinGame(nickname, roomId) => //can't do this if ConnectionContext exists
                 (for {
                   room     <- roomManager.get(roomId)
-                  _        <- room.addUser(User(nickname))
+                  _        <- room.addUser(nickname)
+                  players  <- room.players
                   mapping  <- outgoingRef.get
                   outgoing <- Sync[F].fromOption(mapping.get(roomId), NoRoomFoundForChatId)
-                  _        <- outgoing.broadcast(nickname, UserJoined(nickname))
+                  _        <- outgoing.broadcast(nickname, ChangeInLobby(players))
                   _        <- outgoing.add(UsernameWithSend(nickname, respond))
                   _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
-                  roomInfo <- room.info
-                  _        <- respond.enqueue1(JoinedRoom(roomInfo))
+                  _        <- respond.enqueue1(MoveToLobby(roomId, players))
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error while joining game for $nickname,  ${t.getStackTrace}"))
                 }
@@ -81,8 +82,8 @@ object EventManager {
                 (for {
                   ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
                   room          <- roomManager.get(ctx.roomId)
-                  proposal      <- room.proposeMission(ctx.nickname, players.map(User(_)))
-                  outgoingEvent =  TeamAssignmentEvent(proposal.missionNumber, proposal.missionLeader, proposal.users.map(_.nickname))
+                  proposal      <- room.proposeMission(ctx.nickname, players)
+                  outgoingEvent =  TeamAssignmentEvent(proposal.missionNumber, proposal.missionLeader, proposal.users)
                   mapping       <- outgoingRef.get
                   outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
                   _             <- outgoing.sendToAll(outgoingEvent)

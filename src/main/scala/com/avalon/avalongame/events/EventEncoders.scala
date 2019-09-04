@@ -11,7 +11,7 @@ import io.circe.syntax._
 object EventEncoders {
   implicit val gameStateEncoder: Encoder[GameState] = Encoder.instance {
     case Lobby => Json.obj("state" := "Lobby")
-    case MissionProposing(mn, ml) => Json.obj("state" := "MissionProposing", "currentMission" := mn, "missionLeader" := ml.nickname)
+    case MissionProposing(mn, ml) => Json.obj("state" := "MissionProposing", "currentMission" := mn, "missionLeader" := ml)
     case MissionVoting(mn, ml, users, v) =>
       Json.obj(
         "state" := "MissionVoting",

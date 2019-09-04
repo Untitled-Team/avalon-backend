@@ -18,7 +18,7 @@ class RoomManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChec
   }
 
   test("Create and update the room manager, alongside some room tests") {
-    forAll { (chatId: RoomId, user: User, config: GameConfig) =>
+    forAll { (chatId: RoomId, nickname: Nickname, config: GameConfig) =>
 
       val roomManager = RoomManager.build[IO](mockRandomAlg).unsafeRunSync()
 
@@ -26,9 +26,9 @@ class RoomManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChec
 
       val room = roomManager.get(chatId).unsafeRunSync()
 
-      room.users.unsafeRunSync() should be(Nil)
-      room.addUser(user).unsafeRunSync()
-      room.users.unsafeRunSync() should be(List(user))
+      room.players.unsafeRunSync() should be(Nil)
+      room.addUser(nickname).unsafeRunSync()
+      room.players.unsafeRunSync() should be(List(nickname))
     }
   }
 }

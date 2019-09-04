@@ -9,25 +9,33 @@ import io.circe.{Encoder, _}
 
 sealed trait OutgoingEvent
 
-case class GameCreated(roomId: RoomId) extends OutgoingEvent
+case class MoveToLobby(roomId: RoomId, players: List[Nickname]) extends OutgoingEvent
 
-object GameCreated {
-  implicit val encoder: Encoder[GameCreated] = deriveEncoder
+object MoveToLobby {
+  implicit val encoder: Encoder[MoveToLobby] = deriveEncoder
 }
 
-case class JoinedRoom(room: RoomInfo) extends OutgoingEvent
+case class ChangeInLobby(players: List[Nickname]) extends OutgoingEvent
 
-object JoinedRoom {
-  implicit val encoder: Encoder[JoinedRoom] = deriveEncoder
+object ChangeInLobby {
+  implicit val encoder: Encoder[ChangeInLobby] = deriveEncoder
 }
 
-case class UserJoined(nickname: Nickname) extends OutgoingEvent
 
-object UserJoined {
-  implicit val encoder: Encoder[UserJoined] = deriveEncoder
-}
+//roomInfo?
+//case class JoinedRoom(room: RoomInfo) extends OutgoingEvent
 
-case class GameStarted(state: GameState, missions: Missions, playerRole: CharacterRole, users: List[User]) extends OutgoingEvent
+//object JoinedRoom {
+//  implicit val encoder: Encoder[JoinedRoom] = deriveEncoder
+//}
+
+//case class UserJoined(nickname: Nickname) extends OutgoingEvent
+
+//object UserJoined {
+//  implicit val encoder: Encoder[UserJoined] = deriveEncoder
+//}
+
+case class GameStarted(state: GameState, missions: Missions, playerRole: CharacterRole, users: List[Nickname]) extends OutgoingEvent
 object GameStarted {
   implicit val encoder: Encoder[GameStarted] = deriveEncoder
 }
@@ -39,10 +47,10 @@ object TeamAssignmentEvent {
 
 object OutgoingEventEncoder {
   implicit val encoder: Encoder[OutgoingEvent] = Encoder.instance {
-    case g@GameCreated(_) => GameCreated.encoder.apply(g).deepMerge(Json.obj("action" := "GameCreated"))
-    case j@JoinedRoom(_) => JoinedRoom.encoder.apply(j).deepMerge(Json.obj("action" := "JoinedRoom")) //maybe reusable as Lobby?
-    case u@UserJoined(_) => UserJoined.encoder.apply(u).deepMerge(Json.obj("action" := "UserJoined"))
-    case g@GameStarted(_, _, _, _) => GameStarted.encoder.apply(g).deepMerge(Json.obj("action" := "GameStarted"))
+    case g@MoveToLobby(_, _)            => MoveToLobby.encoder.apply(g).deepMerge(Json.obj("action" := "MoveToLobby"))
+    case j@ChangeInLobby(_)             => ChangeInLobby.encoder.apply(j).deepMerge(Json.obj("action" := "ChangeInLobby"))
+//    case u@UserJoined(_)                => UserJoined.encoder.apply(u).deepMerge(Json.obj("action" := "UserJoined"))
+    case g@GameStarted(_, _, _, _)      => GameStarted.encoder.apply(g).deepMerge(Json.obj("action" := "GameStarted"))
     case g@TeamAssignmentEvent(_, _, _) => TeamAssignmentEvent.encoder.apply(g).deepMerge(Json.obj("action" := "TeamAssignment"))
   }
 }

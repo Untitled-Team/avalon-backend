@@ -30,33 +30,33 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
   test("Fail if we try to add a user who has the same nickname as another user in the room") {
     forAll { (roomId: RoomId, config: GameConfig) =>
 
-      val user1 = User(Nickname("Taylor"))
-      val user2 = User(Nickname("Taylor"))
+      val user1 = Nickname("Taylor")
+      val user2 = Nickname("Taylor")
 
       val room = Room.build(mockRandomAlg, roomId, config).unsafeRunSync()
 
-      room.users.unsafeRunSync() should be(Nil)
+      room.players.unsafeRunSync() should be(Nil)
 
       room.addUser(user1).unsafeRunSync()
-      room.addUser(user2).attempt.unsafeRunSync() should be(Left(NicknameAlreadyInUse(user1.nickname)))
+      room.addUser(user2).attempt.unsafeRunSync() should be(Left(NicknameAlreadyInUse(user1)))
 
-      room.users.unsafeRunSync() should be(List(user1))
+      room.players.unsafeRunSync() should be(List(user1))
     }
   }
 
   test("Properly add users") {
     forAll { (roomId: RoomId, config: GameConfig) =>
 
-      val user1 = User(Nickname("Taylor"))
-      val user2 = User(Nickname("Nick"))
-      val user3 = User(Nickname("Chris"))
-      val user4 = User(Nickname("Carter"))
-      val user5 = User(Nickname("Austin"))
+      val user1 = Nickname("Taylor")
+      val user2 = Nickname("Nick")
+      val user3 = Nickname("Chris")
+      val user4 = Nickname("Carter")
+      val user5 = Nickname("Austin")
 
 
       val room = Room.build(mockRandomAlg, roomId, config).unsafeRunSync()
 
-      room.users.unsafeRunSync() should be(Nil)
+      room.players.unsafeRunSync() should be(Nil)
 
       room.addUser(user1).unsafeRunSync()
       room.addUser(user2).unsafeRunSync()
@@ -64,18 +64,18 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
       room.addUser(user4).unsafeRunSync()
       room.addUser(user5).unsafeRunSync()
 
-      room.users.unsafeRunSync() should contain allOf(user1, user2, user3, user4, user5)
+      room.players.unsafeRunSync() should contain allOf(user1, user2, user3, user4, user5)
     }
   }
 
   test("Fail if we pass in the wrong number of users") {
     forAll { (roomId: RoomId, config: GameConfig) =>
 
-      val user1 = User(Nickname("Taylor"))
-      val user2 = User(Nickname("Nick"))
-      val user3 = User(Nickname("Chris"))
-      val user4 = User(Nickname("Carter"))
-      val user5 = User(Nickname("Austin"))
+      val user1 = Nickname("Taylor")
+      val user2 = Nickname("Nick")
+      val user3 = Nickname("Chris")
+      val user4 = Nickname("Carter")
+      val user5 = Nickname("Austin")
 
       val users = List(user1, user2, user3, user4, user5)
 
@@ -89,18 +89,18 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
 
       room.startGame.unsafeRunSync()
 
-      room.proposeMission(user1.nickname, users.take(3)).attempt.unsafeRunSync() should be(Left(InvalidUserCountForMission(3)))
+      room.proposeMission(user1, users.take(3)).attempt.unsafeRunSync() should be(Left(InvalidUserCountForMission(3)))
     }
   }
 
   test("Fail if the wrong user tries to propose a mission") {
     forAll { (roomId: RoomId, config: GameConfig) =>
 
-      val user1 = User(Nickname("Taylor"))
-      val user2 = User(Nickname("Nick"))
-      val user3 = User(Nickname("Chris"))
-      val user4 = User(Nickname("Carter"))
-      val user5 = User(Nickname("Austin"))
+      val user1 = Nickname("Taylor")
+      val user2 = Nickname("Nick")
+      val user3 = Nickname("Chris")
+      val user4 = Nickname("Carter")
+      val user5 = Nickname("Austin")
 
       val users = List(user1, user2, user3, user4, user5)
 
@@ -114,18 +114,18 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
 
       room.startGame.unsafeRunSync()
 
-      room.proposeMission(user2.nickname, users.take(2)).attempt.unsafeRunSync() should be(Left(UserNotMissionLeader(user2.nickname)))
+      room.proposeMission(user2, users.take(2)).attempt.unsafeRunSync() should be(Left(UserNotMissionLeader(user2)))
     }
   }
 
   test("Successfully propose the mission if we have valid missionLeader and valid user count") {
     forAll { (roomId: RoomId, config: GameConfig) =>
 
-      val user1 = User(Nickname("Taylor"))
-      val user2 = User(Nickname("Nick"))
-      val user3 = User(Nickname("Chris"))
-      val user4 = User(Nickname("Carter"))
-      val user5 = User(Nickname("Austin"))
+      val user1 = Nickname("Taylor")
+      val user2 = Nickname("Nick")
+      val user3 = Nickname("Chris")
+      val user4 = Nickname("Carter")
+      val user5 = Nickname("Austin")
 
       val users = List(user1, user2, user3, user4, user5)
 
@@ -139,9 +139,9 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
 
       room.startGame.unsafeRunSync()
 
-      val proposal = room.proposeMission(user1.nickname, users.take(2)).attempt.unsafeRunSync()
+      val proposal = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
 
-      proposal should be(Right(MissionProposal(1, user1.nickname, users.take(2))))
+      proposal should be(Right(MissionProposal(1, user1, users.take(2))))
     }
   }
 }

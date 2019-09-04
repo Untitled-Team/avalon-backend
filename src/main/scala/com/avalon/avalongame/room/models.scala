@@ -23,11 +23,11 @@ case object GameNotStarted extends RuntimeException with NoStackTrace
 //==================
 sealed trait GameState
 case object Lobby extends GameState
-case class MissionProposing(missionNumber: Int, missionLeader: User) extends GameState
-case class MissionVoting(missionNumber: Int, missionLeader: User, users: List[User], votes: List[TeamAssignmentVote]) extends GameState
+case class MissionProposing(missionNumber: Int, missionLeader: Nickname) extends GameState
+case class MissionVoting(missionNumber: Int, missionLeader: Nickname, users: List[Nickname], votes: List[TeamAssignmentVote]) extends GameState
 case class MissionProposed(voters: NonEmptyList[User]) extends GameState
 
-case class MissionProposal(missionNumber: Int, missionLeader: Nickname, users: List[User])
+case class MissionProposal(missionNumber: Int, missionLeader: Nickname, users: List[Nickname])
 
 sealed abstract case class Mission(players: Option[List[User]], numberOfAdventurers: Int)
 
@@ -111,6 +111,6 @@ case class GameRepresentation(state: GameState,
                               missions: Missions,
                               badGuys: List[BadPlayerRole],
                               goodGuys: List[GoodPlayerRole],
-                              users: List[User])
+                              users: List[Nickname])
 
-case class InternalRoom(users: List[User], gameRepresentation: Option[GameRepresentation])
+case class InternalRoom(players: List[Nickname], gameRepresentation: Option[GameRepresentation])

@@ -30,34 +30,28 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
   }
 
   test("make sure we can encode GameCreated event") {
-    forAll { gameCreated: GameCreated =>
+    forAll { gameCreated: MoveToLobby =>
       val json = gameCreatedJson(gameCreated)
 
       json should be(OutgoingEventEncoder.encoder(gameCreated))
     }
   }
 
-  test("make sure we can encode UserJoined event") {
-    forAll { userJoined: UserJoined =>
-      userJoinedJson(userJoined) should be(OutgoingEventEncoder.encoder(userJoined))
+  test("make sure we can encode ChangeInLobby event") {
+    forAll { changeInLobby: ChangeInLobby =>
+      val json = changeInLobbyJson(changeInLobby)
+
+      json should be(OutgoingEventEncoder.encoder(changeInLobby))
     }
   }
 
-  test("make sure we can encode JoinedRoom event") {
-    forAll { joinedRoom: JoinedRoom =>
-      val json = joinedRoomJson(joinedRoom)
-
-      json should be(OutgoingEventEncoder.encoder(joinedRoom))
-    }
-  }
-
-  test("make sure we can encode GameStarted event") {
-    forAll { gameStarted: GameStarted =>
-      val json = gameStartedJson(gameStarted)
-
-      json should be(OutgoingEventEncoder.encoder(gameStarted))
-    }
-  }
+//  test("make sure we can encode GameStarted event") {
+//    forAll { gameStarted: GameStarted =>
+//      val json = gameStartedJson(gameStarted)
+//
+//      json should be(OutgoingEventEncoder.encoder(gameStarted))
+//    }
+//  }
 
   test("make sure we can encode TeamAssignmentEvent event") {
     forAll { teamAssignmentEvent: TeamAssignmentEvent =>
@@ -67,40 +61,30 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     }
   }
 
-  def gameCreatedJson(gameCreated: GameCreated): Json =
+  def gameCreatedJson(moveToLobby: MoveToLobby): Json =
     Json.obj(
-      "action" := "GameCreated",
-      "roomId" := gameCreated.roomId.value
+      "action" := "MoveToLobby",
+      "roomId" := moveToLobby.roomId.value,
+      "players" := moveToLobby.players
     )
 
-  def userJoinedJson(userJoined: UserJoined): Json =
+  def changeInLobbyJson(joinedRoom: ChangeInLobby): Json =
     Json.obj(
-      "action" := "UserJoined",
-      "nickname" := userJoined.nickname.value)
-
-  def joinedRoomJson(joinedRoom: JoinedRoom): Json =
-    Json.obj(
-      "action" := "JoinedRoom",
-      "room" := Json.obj(
-        "users" := Json.fromValues(joinedRoom.room.users.map(u => Json.obj("nickname" := u.nickname))),
-        "config" := Json.obj(
-          "merlin" := joinedRoom.room.config.merlin,
-          "assassin" := joinedRoom.room.config.assassin,
-        )
-      )
+      "action" := "ChangeInLobby",
+      "players" := joinedRoom.players
     )
 
-  def gameStartedJson(gameStarted: GameStarted): Json =
-    Json.obj(
-      "action" := "GameStarted",
-      "state" := gameStarted.state, //need to test this separately
-      "missions" := gameStarted.missions,
-      "playerRole" := Json.obj(
-        "character" := gameStarted.playerRole.character,
-        "badGuys" := gameStarted.playerRole.badGuys
-      ),
-      "users" := gameStarted.users
-    )
+//  def gameStartedJson(gameStarted: GameStarted): Json =
+//    Json.obj(
+//      "action" := "GameStarted",
+//      "state" := gameStarted.state, //need to test this separately
+//      "missions" := gameStarted.missions,
+//      "playerRole" := Json.obj(
+//        "character" := gameStarted.playerRole.character,
+//        "badGuys" := gameStarted.playerRole.badGuys
+//      ),
+//      "users" := gameStarted.users
+//    )
 
   def teamAssignmentEventJson(missionProposalEvent: TeamAssignmentEvent): Json =
     Json.obj(
