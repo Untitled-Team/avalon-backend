@@ -4,10 +4,10 @@ import com.avalon.avalongame.common._
 import com.avalon.avalongame.room._
 import scala.util.control.NoStackTrace
 
-sealed abstract case class CharacterRole(character: Role, badGuys: Option[List[Nickname]])
+sealed abstract case class CharacterRole(character: Role, badGuys: Option[List[BadPlayerRole]])
 
 object CharacterRole {
-  def fromRole(role: Role, badGuys: List[Nickname]): CharacterRole =
+  def fromRole(role: Role, badGuys: List[BadPlayerRole]): CharacterRole =
     role match {
       case Assassin      => new CharacterRole(Assassin, Some(badGuys)){}
       case NormalBadGuy  => new CharacterRole(NormalBadGuy, Some(badGuys)){}

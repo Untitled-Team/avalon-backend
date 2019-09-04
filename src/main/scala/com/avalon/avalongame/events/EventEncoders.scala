@@ -16,7 +16,7 @@ object EventEncoders {
       Json.obj(
         "state" := "MissionVoting",
         "currentMission" := mn,
-        "missionLeader" := ml.nickname,
+        "missionLeader" := ml,
         "users" := users,
         "votes" := v)
     case MissionProposed(voters) => Json.obj("state" := "MissionProposing", "voters" := voters)
@@ -41,6 +41,8 @@ object EventEncoders {
     case Merlin => "Merlin"
     case NormalGoodGuy => "NormalGoodGuy"
   }
+
+  implicit val badPlayerRoleEncoder: Encoder[BadPlayerRole] = Nickname.encoder.contramap(_.nickname)
 
   implicit val characterRoleEncoder: Encoder[CharacterRole] = Encoder.instance { m =>
     Json.obj(

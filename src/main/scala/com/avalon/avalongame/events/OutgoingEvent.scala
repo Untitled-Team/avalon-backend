@@ -1,7 +1,7 @@
 package com.avalon.avalongame.events
 
 import com.avalon.avalongame.common._
-import com.avalon.avalongame.room.{GameState, Missions}
+import com.avalon.avalongame.room._
 import EventEncoders._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
@@ -21,18 +21,17 @@ object ChangeInLobby {
   implicit val encoder: Encoder[ChangeInLobby] = deriveEncoder
 }
 
+case class PlayerInfo(character: Role, badGuys: Option[List[BadPlayerRole]]) extends OutgoingEvent
+
+object PlayerInfo {
+  implicit val encoder: Encoder[PlayerInfo] = deriveEncoder
+}
 
 //roomInfo?
 //case class JoinedRoom(room: RoomInfo) extends OutgoingEvent
 
 //object JoinedRoom {
 //  implicit val encoder: Encoder[JoinedRoom] = deriveEncoder
-//}
-
-//case class UserJoined(nickname: Nickname) extends OutgoingEvent
-
-//object UserJoined {
-//  implicit val encoder: Encoder[UserJoined] = deriveEncoder
 //}
 
 case class GameStarted(state: GameState, missions: Missions, playerRole: CharacterRole, users: List[Nickname]) extends OutgoingEvent
@@ -49,6 +48,7 @@ object OutgoingEventEncoder {
   implicit val encoder: Encoder[OutgoingEvent] = Encoder.instance {
     case g@MoveToLobby(_, _)            => MoveToLobby.encoder.apply(g).deepMerge(Json.obj("action" := "MoveToLobby"))
     case j@ChangeInLobby(_)             => ChangeInLobby.encoder.apply(j).deepMerge(Json.obj("action" := "ChangeInLobby"))
+    case p@PlayerInfo(_, _)             => PlayerInfo.encoder.apply(p).deepMerge(Json.obj("action" := "PlayerInfo"))
 //    case u@UserJoined(_)                => UserJoined.encoder.apply(u).deepMerge(Json.obj("action" := "UserJoined"))
     case g@GameStarted(_, _, _, _)      => GameStarted.encoder.apply(g).deepMerge(Json.obj("action" := "GameStarted"))
     case g@TeamAssignmentEvent(_, _, _) => TeamAssignmentEvent.encoder.apply(g).deepMerge(Json.obj("action" := "TeamAssignment"))

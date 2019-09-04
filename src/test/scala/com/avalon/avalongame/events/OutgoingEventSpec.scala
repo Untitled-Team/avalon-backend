@@ -22,11 +22,12 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     Gen.chooseNum[Int](5, 10).map(n => IO.fromEither(Missions.fromPlayers(n)).unsafeRunSync())
   }
 
-  implicit val characterRole: Arbitrary[CharacterRole] = Arbitrary {
+  implicit val playerRoleEventArb: Arbitrary[PlayerInfo] = Arbitrary {
     for {
-      badGuys <- Gen.listOf[Nickname](Arbitrary.arbitrary[Nickname])
+      badGuys <- Gen.listOf[BadPlayerRole](Arbitrary.arbitrary[BadPlayerRole])
       role <- Arbitrary.arbitrary[Role]
-    } yield CharacterRole.fromRole(role, badGuys)
+      charRole = CharacterRole.fromRole(role, badGuys)
+    } yield PlayerInfo(charRole.character, charRole.badGuys)
   }
 
   test("make sure we can encode GameCreated event") {
@@ -42,6 +43,14 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       val json = changeInLobbyJson(changeInLobby)
 
       json should be(OutgoingEventEncoder.encoder(changeInLobby))
+    }
+  }
+
+  test("make sure we can encode PlayerInfoEvent event") {
+    forAll { playerInfoEvent: PlayerInfo =>
+      val json = playerRoleEventJson(playerInfoEvent)
+
+      json should be(OutgoingEventEncoder.encoder(playerInfoEvent))
     }
   }
 
@@ -85,6 +94,13 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
 //      ),
 //      "users" := gameStarted.users
 //    )
+
+  def playerRoleEventJson(playerRoleEvent: PlayerInfo): Json =
+    Json.obj(
+      "action" := "PlayerInfo",
+      "character" := playerRoleEvent.character,
+      "badGuys" := playerRoleEvent.badGuys
+    )
 
   def teamAssignmentEventJson(missionProposalEvent: TeamAssignmentEvent): Json =
     Json.obj(

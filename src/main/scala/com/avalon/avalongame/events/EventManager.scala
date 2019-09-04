@@ -69,10 +69,10 @@ object EventManager {
                   ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
                   room          <- roomManager.get(ctx.roomId)
                   repr          <- room.startGame
-                  outgoingEvent <- representationToGameCreated(ctx.nickname, repr)
+                  outgoingEvent <- playerRole(ctx.nickname, repr)
                   mapping       <- outgoingRef.get
                   outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-                  _             <- outgoing.broadcastUserSpecific(ctx.nickname, representationToGameCreated(_, repr).widen[OutgoingEvent])
+                  _             <- outgoing.broadcastUserSpecific(ctx.nickname, playerRole(_, repr).widen[OutgoingEvent])
                   _             <- respond.enqueue1(outgoingEvent)
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error while starting game for ???,  ${t.getStackTrace}"))
