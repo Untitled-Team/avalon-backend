@@ -38,6 +38,8 @@ object Room {
           mvar.take.flatMap { room =>
             if (room.players.contains(player))
               mvar.put(room) >> F.raiseError(NicknameAlreadyInUse(player))
+            else if(room.gameRepresentation.nonEmpty)
+              mvar.put(room) >> F.raiseError(GameHasStarted)
             else
               mvar.put(room.copy(room.players :+ player))
           }

@@ -10,6 +10,7 @@ import scala.util.control.NoStackTrace
 // Errors
 //==================
 
+case object GameHasStarted extends RuntimeException with NoStackTrace
 case class NicknameAlreadyInUse(nickname: Nickname) extends RuntimeException with NoStackTrace
 case class InvalidStateTransition(gameState: GameState, to: String, nickname: Nickname) extends RuntimeException with NoStackTrace
 case class UserNotMissionLeader(nickname: Nickname) extends RuntimeException with NoStackTrace

@@ -44,6 +44,34 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
     }
   }
 
+  test("Fail to add user when the game has started") {
+    forAll { (roomId: RoomId, config: GameConfig) =>
+
+      val user1 = Nickname("Taylor")
+      val user2 = Nickname("Nick")
+      val user3 = Nickname("Chris")
+      val user4 = Nickname("Carter")
+      val user5 = Nickname("Austin")
+
+
+      val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
+
+      room.players.unsafeRunSync() should be(Nil)
+
+      room.addUser(user1).unsafeRunSync()
+      room.addUser(user2).unsafeRunSync()
+      room.addUser(user3).unsafeRunSync()
+      room.addUser(user4).unsafeRunSync()
+      room.addUser(user5).unsafeRunSync()
+
+      room.players.unsafeRunSync() should contain allOf(user1, user2, user3, user4, user5)
+
+      room.startGame.unsafeRunSync()
+
+      room.addUser(Nickname("new user")).attempt.unsafeRunSync() should be(Left(GameHasStarted))
+    }
+  }
+
   test("Properly add users") {
     forAll { (roomId: RoomId, config: GameConfig) =>
 
