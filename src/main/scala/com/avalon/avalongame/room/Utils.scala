@@ -4,7 +4,7 @@ import cats.data.StateT
 import cats.effect.Sync
 import cats.implicits._
 import com.avalon.avalongame.common._
-import com.avalon.avalongame.events.GameStarted
+//import com.avalon.avalongame.events.GameStarted
 
 import scala.util.control.NoStackTrace
 

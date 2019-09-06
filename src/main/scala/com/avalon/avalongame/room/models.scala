@@ -17,15 +17,12 @@ case class InvalidUserCountForMission(n: Int) extends RuntimeException with NoSt
 case class InvalidMissionNumber(n: Int) extends RuntimeException with NoStackTrace
 case class NotEnoughPlayers(playerCount: Int) extends RuntimeException with NoStackTrace
 case object GameNotStarted extends RuntimeException with NoStackTrace
+case class PlayerAlreadyReady(nickname: Nickname) extends RuntimeException with NoStackTrace
 
 //==================
 // Game stuff
 //==================
-sealed trait GameState
-case object Lobby extends GameState
-case class MissionProposing(missionNumber: Int, missionLeader: Nickname) extends GameState
-case class MissionVoting(missionNumber: Int, missionLeader: Nickname, users: List[Nickname], votes: List[TeamAssignmentVote]) extends GameState
-case class MissionProposed(voters: NonEmptyList[User]) extends GameState
+
 
 case class MissionProposal(missionNumber: Int, missionLeader: Nickname, users: List[Nickname])
 
@@ -106,6 +103,13 @@ sealed trait PlayerRole {
 }
 case class GoodPlayerRole(nickname: Nickname, role: GoodGuy) extends PlayerRole
 case class BadPlayerRole(nickname: Nickname, role: BadGuy) extends PlayerRole
+
+sealed trait GameState
+case object Lobby extends GameState
+case class PlayersReadingRole(playersReady: List[Nickname]) extends GameState
+case class MissionProposing(missionNumber: Int, missionLeader: Nickname) extends GameState
+case class MissionVoting(missionNumber: Int, missionLeader: Nickname, users: List[Nickname], votes: List[TeamAssignmentVote]) extends GameState
+case class MissionProposed(voters: NonEmptyList[User]) extends GameState
 
 case class GameRepresentation(state: GameState,
                               missions: Missions,

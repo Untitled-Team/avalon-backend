@@ -21,6 +21,8 @@ object JoinGame {
 
 case object StartGame extends IncomingEvent
 
+case object PlayerReady extends IncomingEvent
+
 case class TeamAssignment(players: List[Nickname]) extends IncomingEvent
 object TeamAssignment {
   implicit val decoder: Decoder[TeamAssignment] = deriveDecoder
@@ -40,6 +42,7 @@ object IncomingEventDecoder {
         case "CreateGame" => CreateGame.decoder.decodeJson(hcursor.value)
         case "JoinGame"   => JoinGame.decoder.decodeJson(hcursor.value)
         case "StartGame"  => Right(StartGame)
+        case "PlayerReady" => Right(PlayerReady)
         case "TeamAssignment" => TeamAssignment.decoder.decodeJson(hcursor.value)
         case "TeamAssignmentVote" => TeamAssignmentVote.decoder.decodeJson(hcursor.value)
       }

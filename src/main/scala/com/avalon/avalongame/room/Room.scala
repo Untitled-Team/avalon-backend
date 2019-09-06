@@ -9,11 +9,16 @@ import com.avalon.avalongame.common._
 
 import scala.util.control.NoStackTrace
 
+sealed trait PlayerReadyEnum
+case class NotReadyYet(nicknames: List[Nickname]) extends PlayerReadyEnum
+case class AllReady(missionNumber: Int, missionLeader: Nickname, missions: Missions) extends PlayerReadyEnum
+
 trait Room[F[_]] {
-  def info: F[RoomInfo]
+//  def info: F[RoomInfo]
   def players: F[List[Nickname]]
   def addUser(player: Nickname): F[Unit]
   def startGame: F[GameRepresentation]
+  def playerReady(nickname: Nickname): F[PlayerReadyEnum]
   def proposeMission(nickname: Nickname, users: List[Nickname]): F[MissionProposal]
   def vote(nickname: Nickname, vote: Vote): F[Unit]
 }
@@ -24,7 +29,7 @@ object Room {
   def build[F[_]](randomAlg: RandomAlg[F], roomId: RoomId, config: GameConfig)(implicit F: Concurrent[F]): F[Room[F]] =
     MVar.of(InternalRoom(Nil, None)).map { mvar =>
       new Room[F] {
-        def info: F[RoomInfo] = players.map(RoomInfo(_, config))
+//        def info: F[RoomInfo] = players.map(RoomInfo(_, config))
 
         def players: F[List[Nickname]] = mvar.read.map(_.players)
 
@@ -42,10 +47,39 @@ object Room {
             (for {
               missions      <- F.fromEither(Missions.fromPlayers(room.players.size))
               roles         <- Utils.assignRoles(room.players, randomAlg.shuffle)
-              missionLeader <- randomAlg.randomGet(room.players)
-              repr          =  GameRepresentation(MissionProposing(1, missionLeader), missions, roles.badGuys, roles.goodGuys, room.players)
+//              missionLeader <- randomAlg.randomGet(room.players)
+              repr          =  GameRepresentation(PlayersReadingRole(Nil), missions, roles.badGuys, roles.goodGuys, room.players)
               _             <- mvar.put(room.copy(gameRepresentation = Some(repr)))
             } yield repr)
+              .guaranteeCase {
+                case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
+                case ExitCase.Completed => F.unit
+              }
+          }
+
+        def playerReady(nickname: Nickname): F[PlayerReadyEnum] =
+          mvar.take.flatMap { room =>
+            (for {
+              repr  <- F.fromOption(room.gameRepresentation, GameNotStarted)
+              state: PlayersReadingRole <- repr.state match {
+                case m@PlayersReadingRole(_) => F.pure(m)
+                case _ => F.raiseError(InvalidStateTransition(repr.state, "playerReady", nickname))
+              }
+              _ <- if (state.playersReady.contains(nickname)) F.raiseError(PlayerAlreadyReady(nickname)) else F.unit
+              updatedState = state.copy(state.playersReady :+ nickname)
+              enum: PlayerReadyEnum <-
+                if (updatedState.playersReady.size === room.players.size) {
+                  for {
+                    missionLeader <- randomAlg.randomGet(room.players)
+                    updatedRepr   =  repr.copy(state = MissionProposing(1, missionLeader))
+                    _             <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
+                  } yield AllReady(1, missionLeader, repr.missions)
+                }
+                else {
+                  val updatedRepr = repr.copy(state = updatedState)
+                  mvar.put(room.copy(gameRepresentation = Some(updatedRepr))).map(_ => NotReadyYet(room.players diff updatedState.playersReady))
+                }
+            } yield enum)
               .guaranteeCase {
                 case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
                 case ExitCase.Completed => F.unit

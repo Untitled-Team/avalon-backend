@@ -6,7 +6,7 @@ import cats.effect.concurrent.Ref
 import cats.effect.implicits._
 import cats.temp.par._
 import com.avalon.avalongame.common._
-import com.avalon.avalongame.room.{RoomIdGenerator, RoomManager}
+import com.avalon.avalongame.room.{AllReady, RoomIdGenerator, RoomManager}
 import fs2._
 import fs2.concurrent.Queue
 
@@ -26,10 +26,10 @@ object EventManager {
 
   case object NoContext extends RuntimeException with NoStackTrace
 
-  def build[F[_]: Par](roomManager: RoomManager[F], roomIdGenerator: RoomIdGenerator[F])(implicit F: Concurrent[F]): F[EventManager[F]] =
-    Ref.of[F, Map[RoomId, OutgoingManager[F]]](Map.empty).map { outgoingRef =>
-      new EventManager[F] {
-
+  private[events] def buildOutgoing[F[_]: Par](roomManager: RoomManager[F],
+                                               roomIdGenerator: RoomIdGenerator[F],
+                                               outgoingRef: Ref[F, Map[RoomId, OutgoingManager[F]]])(implicit F: Concurrent[F]): EventManager[F] = {
+    new EventManager[F] {
         //it's possible we could have two rooms with same Id, but we don't care right now.
         def interpret(respond: Queue[F, OutgoingEvent], events: Stream[F, IncomingEvent]): F[Unit] =
           Stream.eval(Ref.of[F, Option[ConnectionContext]](None)).flatMap { context =>
@@ -78,23 +78,44 @@ object EventManager {
                   case t => Sync[F].delay(println(s"We encountered an error while starting game for ???,  ${t.getStackTrace}"))
                 }
 
-              case TeamAssignment(players) =>
+              case PlayerReady => F.unit
                 (for {
                   ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
                   room          <- roomManager.get(ctx.roomId)
-                  proposal      <- room.proposeMission(ctx.nickname, players)
-                  outgoingEvent =  TeamAssignmentEvent(proposal.missionNumber, proposal.missionLeader, proposal.users)
+                  result        <- room.playerReady(ctx.nickname)
                   mapping       <- outgoingRef.get
                   outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-                  _             <- outgoing.sendToAll(outgoingEvent)
+                  _ <- result match {
+                    case AllReady(missionNumber, leader, missions) =>
+                      outgoing.sendToAll(TeamAssignmentPhase(missionNumber, leader, missions))
+                    case _ => F.unit
+                  }
                 } yield ()).onError {
-                  case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
+                  case t => Sync[F].delay(println(s"We encountered an error while handling PlayerReady for ???,  ${t.getStackTrace}"))
                 }
+
+              case TeamAssignment(players) => F.unit
+//                (for {
+//                  ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
+//                  room          <- roomManager.get(ctx.roomId)
+//                  proposal      <- room.proposeMission(ctx.nickname, players)
+//                  outgoingEvent =  TeamAssignmentPhase(proposal.missionNumber, proposal.missionLeader, proposal.users)
+//                  mapping       <- outgoingRef.get
+//                  outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+//                  _             <- outgoing.sendToAll(outgoingEvent)
+//                } yield ()).onError {
+//                  case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
+//                }
 
               case TeamAssignmentVote(_, _) => F.unit
             }
           }.compile.drain
       }
+  }
+
+  def build[F[_]: Par](roomManager: RoomManager[F], roomIdGenerator: RoomIdGenerator[F])(implicit F: Concurrent[F]): F[EventManager[F]] =
+    Ref.of[F, Map[RoomId, OutgoingManager[F]]](Map.empty).map { outgoingRef =>
+      buildOutgoing(roomManager, roomIdGenerator, outgoingRef)
     }
 }
 
