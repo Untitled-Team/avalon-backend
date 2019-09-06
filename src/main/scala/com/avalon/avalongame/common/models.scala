@@ -51,7 +51,7 @@ object GameConfig {
   implicit val encoder: Encoder[GameConfig] = deriveEncoder
 }
 
-case class RoomInfo(users: List[User], config: GameConfig)
+case class RoomInfo(players: List[Nickname], config: GameConfig)
 
 object RoomInfo {
   implicit val encoder: Encoder[RoomInfo] = deriveEncoder

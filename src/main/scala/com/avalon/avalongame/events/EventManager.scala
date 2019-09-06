@@ -6,7 +6,7 @@ import cats.effect.concurrent.Ref
 import cats.effect.implicits._
 import cats.temp.par._
 import com.avalon.avalongame.common._
-import com.avalon.avalongame.room.{RoomIdGenerator, RoomManager}
+import com.avalon.avalongame.room.{AllReady, RoomIdGenerator, RoomManager}
 import fs2._
 import fs2.concurrent.Queue
 
@@ -26,24 +26,25 @@ object EventManager {
 
   case object NoContext extends RuntimeException with NoStackTrace
 
-  def build[F[_]: Par](roomManager: RoomManager[F], roomIdGenerator: RoomIdGenerator[F])(implicit F: Concurrent[F]): F[EventManager[F]] =
-    Ref.of[F, Map[RoomId, OutgoingManager[F]]](Map.empty).map { outgoingRef =>
-      new EventManager[F] {
-
+  private[events] def buildOutgoing[F[_]: Par](roomManager: RoomManager[F],
+                                               roomIdGenerator: RoomIdGenerator[F],
+                                               outgoingRef: Ref[F, Map[RoomId, OutgoingManager[F]]])(implicit F: Concurrent[F]): EventManager[F] = {
+    new EventManager[F] {
         //it's possible we could have two rooms with same Id, but we don't care right now.
         def interpret(respond: Queue[F, OutgoingEvent], events: Stream[F, IncomingEvent]): F[Unit] =
           Stream.eval(Ref.of[F, Option[ConnectionContext]](None)).flatMap { context =>
             events.evalMap {
-              case CreateGame(nickname, config) => //can't do this if ConnectionContext exists
+              case CreateGame(nickname) => //can't do this if ConnectionContext exists
                 (for {
                   roomId   <- roomIdGenerator.generate
-                  _        <- roomManager.create(roomId, config)
+                  _        <- roomManager.create(roomId)
                   room     <- roomManager.get(roomId)
-                  _        <- room.addUser(User(nickname))
+                  _        <- room.addUser(nickname)
                   outgoing <- OutgoingManager.build[F](UsernameWithSend[F](nickname, respond))
                   _        <- outgoingRef.update(_ + (roomId -> outgoing))
                   _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
-                  _        <- respond.enqueue1(GameCreated(roomId))
+                  players  <- room.players
+                  _        <- respond.enqueue1(MoveToLobby(roomId, players))
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error while creating game for $nickname,  ${t.getStackTrace}"))
                 }
@@ -51,14 +52,14 @@ object EventManager {
               case JoinGame(nickname, roomId) => //can't do this if ConnectionContext exists
                 (for {
                   room     <- roomManager.get(roomId)
-                  _        <- room.addUser(User(nickname))
+                  _        <- room.addUser(nickname)
+                  players  <- room.players
                   mapping  <- outgoingRef.get
                   outgoing <- Sync[F].fromOption(mapping.get(roomId), NoRoomFoundForChatId)
-                  _        <- outgoing.broadcast(nickname, UserJoined(nickname))
+                  _        <- outgoing.broadcast(nickname, ChangeInLobby(players))
                   _        <- outgoing.add(UsernameWithSend(nickname, respond))
                   _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
-                  roomInfo <- room.info
-                  _        <- respond.enqueue1(JoinedRoom(roomInfo))
+                  _        <- respond.enqueue1(MoveToLobby(roomId, players))
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error while joining game for $nickname,  ${t.getStackTrace}"))
                 }
@@ -67,33 +68,52 @@ object EventManager {
                 (for {
                   ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
                   room          <- roomManager.get(ctx.roomId)
-                  repr          <- room.startGame
-                  outgoingEvent <- representationToGameCreated(ctx.nickname, repr)
+                  roles         <- room.startGame
                   mapping       <- outgoingRef.get
                   outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-                  _             <- outgoing.broadcastUserSpecific(ctx.nickname, representationToGameCreated(_, repr).widen[OutgoingEvent])
-                  _             <- respond.enqueue1(outgoingEvent)
+                  _             <- outgoing.sendToAllUserSpecific(playerRole(_, roles).widen[OutgoingEvent])
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error while starting game for ???,  ${t.getStackTrace}"))
                 }
 
-              case TeamAssignment(players) =>
+              case PlayerReady => F.unit
                 (for {
                   ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
                   room          <- roomManager.get(ctx.roomId)
-                  proposal      <- room.proposeMission(ctx.nickname, players.map(User(_)))
-                  outgoingEvent =  TeamAssignmentEvent(proposal.missionNumber, proposal.missionLeader, proposal.users.map(_.nickname))
+                  result        <- room.playerReady(ctx.nickname)
                   mapping       <- outgoingRef.get
                   outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-                  _             <- outgoing.sendToAll(outgoingEvent)
+                  _ <- result match {
+                    case AllReady(missionNumber, leader, missions) =>
+                      outgoing.sendToAll(TeamAssignmentPhase(missionNumber, leader, missions))
+                    case _ => F.unit
+                  }
                 } yield ()).onError {
-                  case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
+                  case t => Sync[F].delay(println(s"We encountered an error while handling PlayerReady for ???,  ${t.getStackTrace}"))
                 }
+
+              case TeamAssignment(players) => F.unit
+//                (for {
+//                  ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
+//                  room          <- roomManager.get(ctx.roomId)
+//                  proposal      <- room.proposeMission(ctx.nickname, players)
+//                  outgoingEvent =  TeamAssignmentPhase(proposal.missionNumber, proposal.missionLeader, proposal.users)
+//                  mapping       <- outgoingRef.get
+//                  outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+//                  _             <- outgoing.sendToAll(outgoingEvent)
+//                } yield ()).onError {
+//                  case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
+//                }
 
               case TeamAssignmentVote(_, _) => F.unit
             }
           }.compile.drain
       }
+  }
+
+  def build[F[_]: Par](roomManager: RoomManager[F], roomIdGenerator: RoomIdGenerator[F])(implicit F: Concurrent[F]): F[EventManager[F]] =
+    Ref.of[F, Map[RoomId, OutgoingManager[F]]](Map.empty).map { outgoingRef =>
+      buildOutgoing(roomManager, roomIdGenerator, outgoingRef)
     }
 }
 
@@ -103,8 +123,10 @@ trait OutgoingManager[F[_]] {
   def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit]
   def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => F[OutgoingEvent]): F[Unit]
   def sendToAll(event: OutgoingEvent): F[Unit]
+  def sendToAllUserSpecific(outgoingF: Nickname => F[OutgoingEvent]): F[Unit]
 }
 
+//needs tests to make sure it properly sends out the messages
 object OutgoingManager {
   def build[F[_]: Par](usernameWithSend: UsernameWithSend[F])(implicit F: Concurrent[F]): F[OutgoingManager[F]] =
     Ref.of[F, List[UsernameWithSend[F]]](List(usernameWithSend)).map { ref =>
@@ -120,7 +142,10 @@ object OutgoingManager {
             l.filter(_.nickname =!= nickname).parTraverse(u => outgoingF(u.nickname).flatMap(u.respond.enqueue1))
           }.void
 
-        def sendToAll(event: OutgoingEvent): F[Unit] = ref.get.flatMap(_.parTraverse(u => u.respond.enqueue1(event))).void
+        def sendToAll(event: OutgoingEvent): F[Unit] = sendToAllUserSpecific(_ => F.pure(event))
+
+        def sendToAllUserSpecific(outgoingF: Nickname => F[OutgoingEvent]): F[Unit] =
+          ref.get.flatMap(_.parTraverse(u => outgoingF(u.nickname).flatMap(event => u.respond.enqueue1(event))).void)
       }
     }
 }

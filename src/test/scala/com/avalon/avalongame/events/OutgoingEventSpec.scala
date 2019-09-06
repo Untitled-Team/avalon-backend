@@ -22,91 +22,71 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     Gen.chooseNum[Int](5, 10).map(n => IO.fromEither(Missions.fromPlayers(n)).unsafeRunSync())
   }
 
-  implicit val characterRole: Arbitrary[CharacterRole] = Arbitrary {
+  implicit val playerRoleEventArb: Arbitrary[PlayerInfo] = Arbitrary {
     for {
-      badGuys <- Gen.listOf[Nickname](Arbitrary.arbitrary[Nickname])
+      badGuys <- Gen.listOf[BadPlayerRole](Arbitrary.arbitrary[BadPlayerRole])
       role <- Arbitrary.arbitrary[Role]
-    } yield CharacterRole.fromRole(role, badGuys)
+      charRole = CharacterRole.fromRole(role, badGuys)
+    } yield PlayerInfo(charRole.character, charRole.badGuys)
   }
 
   test("make sure we can encode GameCreated event") {
-    forAll { gameCreated: GameCreated =>
+    forAll { gameCreated: MoveToLobby =>
       val json = gameCreatedJson(gameCreated)
 
       json should be(OutgoingEventEncoder.encoder(gameCreated))
     }
   }
 
-  test("make sure we can encode UserJoined event") {
-    forAll { userJoined: UserJoined =>
-      userJoinedJson(userJoined) should be(OutgoingEventEncoder.encoder(userJoined))
+  test("make sure we can encode ChangeInLobby event") {
+    forAll { changeInLobby: ChangeInLobby =>
+      val json = changeInLobbyJson(changeInLobby)
+
+      json should be(OutgoingEventEncoder.encoder(changeInLobby))
     }
   }
 
-  test("make sure we can encode JoinedRoom event") {
-    forAll { joinedRoom: JoinedRoom =>
-      val json = joinedRoomJson(joinedRoom)
+  test("make sure we can encode PlayerInfoEvent event") {
+    forAll { playerInfoEvent: PlayerInfo =>
+      val json = playerRoleEventJson(playerInfoEvent)
 
-      json should be(OutgoingEventEncoder.encoder(joinedRoom))
+      json should be(OutgoingEventEncoder.encoder(playerInfoEvent))
     }
   }
 
-  test("make sure we can encode GameStarted event") {
-    forAll { gameStarted: GameStarted =>
-      val json = gameStartedJson(gameStarted)
-
-      json should be(OutgoingEventEncoder.encoder(gameStarted))
-    }
-  }
-
-  test("make sure we can encode TeamAssignmentEvent event") {
-    forAll { teamAssignmentEvent: TeamAssignmentEvent =>
+  test("make sure we can encode TeamAssignmentPhase event") {
+    forAll { teamAssignmentEvent: TeamAssignmentPhase =>
       val json = teamAssignmentEventJson(teamAssignmentEvent)
 
       json should be(OutgoingEventEncoder.encoder(teamAssignmentEvent))
     }
   }
 
-  def gameCreatedJson(gameCreated: GameCreated): Json =
+  def gameCreatedJson(moveToLobby: MoveToLobby): Json =
     Json.obj(
-      "action" := "GameCreated",
-      "roomId" := gameCreated.roomId.value
+      "action" := "MoveToLobby",
+      "roomId" := moveToLobby.roomId.value,
+      "players" := moveToLobby.players
     )
 
-  def userJoinedJson(userJoined: UserJoined): Json =
+  def changeInLobbyJson(joinedRoom: ChangeInLobby): Json =
     Json.obj(
-      "action" := "UserJoined",
-      "nickname" := userJoined.nickname.value)
-
-  def joinedRoomJson(joinedRoom: JoinedRoom): Json =
-    Json.obj(
-      "action" := "JoinedRoom",
-      "room" := Json.obj(
-        "users" := Json.fromValues(joinedRoom.room.users.map(u => Json.obj("nickname" := u.nickname))),
-        "config" := Json.obj(
-          "merlin" := joinedRoom.room.config.merlin,
-          "assassin" := joinedRoom.room.config.assassin,
-        )
-      )
+      "action" := "ChangeInLobby",
+      "players" := joinedRoom.players
     )
 
-  def gameStartedJson(gameStarted: GameStarted): Json =
+  def playerRoleEventJson(playerRoleEvent: PlayerInfo): Json =
     Json.obj(
-      "action" := "GameStarted",
-      "state" := gameStarted.state, //need to test this separately
-      "missions" := gameStarted.missions,
-      "playerRole" := Json.obj(
-        "character" := gameStarted.playerRole.character,
-        "badGuys" := gameStarted.playerRole.badGuys
-      ),
-      "users" := gameStarted.users
+      "action" := "PlayerInfo",
+      "character" := playerRoleEvent.character,
+      "badGuys" := playerRoleEvent.badGuys.map(_.map(_.nickname))
     )
 
-  def teamAssignmentEventJson(missionProposalEvent: TeamAssignmentEvent): Json =
+  def teamAssignmentEventJson(missionProposalEvent: TeamAssignmentPhase): Json =
     Json.obj(
-      "action" := "TeamAssignment",
+      "action" := "TeamAssignmentPhase",
       "missionNumber" := missionProposalEvent.missionNumber,
       "missionLeader" := missionProposalEvent.missionLeader,
-      "players" := missionProposalEvent.players
+      "missions" := missionProposalEvent.missions
     )
 }

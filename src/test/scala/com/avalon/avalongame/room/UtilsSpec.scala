@@ -17,13 +17,13 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val nick = Nickname("Nick")
     val cory = Nickname("Cory")
 
-    val users: List[User] =
+    val users: List[Nickname] =
       List(
-        User(taylor),
-        User(chris),
-        User(carter),
-        User(nick),
-        User(cory))
+        taylor,
+        chris,
+        carter,
+        nick,
+        cory)
 
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
@@ -41,14 +41,14 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val cory = Nickname("Cory")
     val matt = Nickname("Matt")
 
-    val users: List[User] =
+    val users: List[Nickname] =
       List(
         User(taylor),
         User(chris),
         User(carter),
         User(nick),
         User(cory),
-        User(matt))
+        User(matt)).map(_.nickname)
 
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
@@ -71,7 +71,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val matt = Nickname("Matt")
     val liran = Nickname("Liran")
 
-    val users: List[User] =
+    val users: List[Nickname] =
       List(
         User(taylor),
         User(chris),
@@ -79,7 +79,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
         User(carter),
         User(nick),
         User(cory),
-        User(matt))
+        User(matt)).map(_.nickname)
 
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
@@ -103,7 +103,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val liran = Nickname("Liran")
     val brian = Nickname("Brian")
 
-    val users: List[User] =
+    val users: List[Nickname] =
       List(
         User(taylor),
         User(chris),
@@ -112,7 +112,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
         User(nick),
         User(cory),
         User(matt),
-        User(brian))
+        User(brian)).map(_.nickname)
 
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
@@ -138,7 +138,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val brian = Nickname("Brian")
     val austin = Nickname("Austin")
 
-    val users: List[User] =
+    val users: List[Nickname] =
       List(
         User(taylor),
         User(chris),
@@ -148,7 +148,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
         User(cory),
         User(matt),
         User(brian),
-        User(austin))
+        User(austin)).map(_.nickname)
 
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 
@@ -176,7 +176,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
     val austin = Nickname("Austin")
     val justin = Nickname("Justin")
 
-    val users: List[User] =
+    val users: List[Nickname] =
       List(
         User(taylor),
         User(chris),
@@ -187,7 +187,7 @@ class UtilsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks wit
         User(cory),
         User(matt),
         User(brian),
-        User(austin))
+        User(austin)).map(_.nickname)
 
     val result = Utils.assignRoles[IO](users, u => IO.pure(u)).unsafeRunSync()
 

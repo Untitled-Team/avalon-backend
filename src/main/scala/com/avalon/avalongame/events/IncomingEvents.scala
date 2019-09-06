@@ -7,7 +7,7 @@ import io.circe.syntax._
 import io.circe.{Encoder, _}
 
 sealed trait IncomingEvent
-final case class CreateGame(nickname: Nickname, config: GameConfig) extends IncomingEvent
+final case class CreateGame(nickname: Nickname) extends IncomingEvent
 
 object CreateGame {
   implicit val decoder: Decoder[CreateGame] = deriveDecoder
@@ -20,6 +20,8 @@ object JoinGame {
 }
 
 case object StartGame extends IncomingEvent
+
+case object PlayerReady extends IncomingEvent
 
 case class TeamAssignment(players: List[Nickname]) extends IncomingEvent
 object TeamAssignment {
@@ -40,6 +42,7 @@ object IncomingEventDecoder {
         case "CreateGame" => CreateGame.decoder.decodeJson(hcursor.value)
         case "JoinGame"   => JoinGame.decoder.decodeJson(hcursor.value)
         case "StartGame"  => Right(StartGame)
+        case "PlayerReady" => Right(PlayerReady)
         case "TeamAssignment" => TeamAssignment.decoder.decodeJson(hcursor.value)
         case "TeamAssignmentVote" => TeamAssignmentVote.decoder.decodeJson(hcursor.value)
       }

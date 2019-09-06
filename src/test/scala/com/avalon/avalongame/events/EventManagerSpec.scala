@@ -1,5 +1,6 @@
 package com.avalon.avalongame.events
 
+import cats.effect.concurrent.Ref
 import cats.effect.{ContextShift, IO, Timer}
 import com.avalon.avalongame.RandomAlg
 import com.avalon.avalongame.common._
@@ -27,9 +28,11 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
         eventManager.interpret(queue, Stream.eval(IO.pure(createGame))).unsafeRunSync()
 
         val room = roomManager.get(mockRoomIdGenerator.generate.unsafeRunSync()).unsafeRunSync()
-        room.users.unsafeRunSync() should be(List(User(createGame.nickname)))
+        val players = room.players.unsafeRunSync()
 
-        queue.dequeue1.unsafeRunSync() should be(GameCreated(mockRoomIdGenerator.generate.unsafeRunSync()))
+        players should be(List(createGame.nickname))
+
+        queue.dequeue1.unsafeRunSync() should be(MoveToLobby(mockRoomIdGenerator.generate.unsafeRunSync(), players))
       }
     }
   }
@@ -52,34 +55,34 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
         val userQueue3 = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
         //================
-        eventManager.interpret(userQueue, Stream.eval(IO.pure(CreateGame(nickname1, gameConfig)))).unsafeRunSync()
+        eventManager.interpret(userQueue, Stream.eval(IO.pure(CreateGame(nickname1)))).unsafeRunSync()
 
         val room = roomManager.get(roomId).unsafeRunSync()
-        room.users.unsafeRunSync() should be(List(User(nickname1)))
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(GameCreated(roomId))
+        room.players.unsafeRunSync() should be(List(nickname1))
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(MoveToLobby(roomId, room.players.unsafeRunSync()))
         //================
 
         //================
         eventManager.interpret(userQueue2, Stream.eval(IO.pure(JoinGame(nickname2, roomId)))).unsafeRunSync()
 
-        room.users.unsafeRunSync() should contain allOf (User(nickname1), User(nickname2))
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname2))
-        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(JoinedRoom(room.info.unsafeRunSync()))
+        room.players.unsafeRunSync() should contain allOf (nickname1, nickname2)
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(MoveToLobby(roomId, room.players.unsafeRunSync()))
         //================
 
         //================
         eventManager.interpret(userQueue3, Stream.eval(IO.pure(JoinGame(nickname3, roomId)))).unsafeRunSync()
 
-        room.users.unsafeRunSync() should contain allOf (User(nickname1), User(nickname2), User(nickname3))
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname3))
-        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname3))
-        userQueue3.dequeue1.timeout(1 second).unsafeRunSync() should be(JoinedRoom(room.info.unsafeRunSync()))
+        room.players.unsafeRunSync() should contain allOf (nickname1, nickname2, nickname3)
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue3.dequeue1.timeout(1 second).unsafeRunSync() should be(MoveToLobby(roomId, room.players.unsafeRunSync()))
         //================
       }
     }
   }
 
-  test("Get `GameStarted` for all Sockets in response to `StartGame` message") {
+  test("Get `PlayerInfo` for all Sockets in response to `StartGame` message") {
     forAll { (roomId: RoomId, gameConfig: GameConfig) =>
       new context {
 
@@ -92,8 +95,6 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
         val nickname4 = Nickname(java.util.UUID.randomUUID().toString)
         val nickname5 = Nickname(java.util.UUID.randomUUID().toString)
 
-
-
         val eventManager: EventManager[IO] = EventManager.build[IO](roomManager, mockRoomIdGenerator).unsafeRunSync()
 
         val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -103,38 +104,38 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
         val userQueue5 = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
         //================
-        eventManager.interpret(userQueue, Stream.eval(IO.pure(CreateGame(nickname1, gameConfig)))).unsafeRunSync()
+        eventManager.interpret(userQueue, Stream.eval(IO.pure(CreateGame(nickname1)))).unsafeRunSync()
 
         val room = roomManager.get(roomId).unsafeRunSync()
-        room.users.unsafeRunSync() should be(List(User(nickname1)))
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(GameCreated(roomId))
+        room.players.unsafeRunSync() should be(List(nickname1))
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(MoveToLobby(roomId, room.players.unsafeRunSync()))
         //================
 
         //================
         eventManager.interpret(userQueue2, Stream.eval(IO.pure(JoinGame(nickname2, roomId)))).unsafeRunSync()
 
-        room.users.unsafeRunSync() should contain allOf (User(nickname1), User(nickname2))
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname2))
-        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(JoinedRoom(room.info.unsafeRunSync()))
+        room.players.unsafeRunSync() should contain allOf (nickname1, nickname2)
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(MoveToLobby(roomId, room.players.unsafeRunSync()))
         //================
 
         //================
         eventManager.interpret(userQueue3, Stream.eval(IO.pure(JoinGame(nickname3, roomId)))).unsafeRunSync()
 
-        room.users.unsafeRunSync() should contain allOf (User(nickname1), User(nickname2), User(nickname3))
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname3))
-        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname3))
-        userQueue3.dequeue1.timeout(1 second).unsafeRunSync() should be(JoinedRoom(room.info.unsafeRunSync()))
+        room.players.unsafeRunSync() should contain allOf (nickname1, nickname2, nickname3)
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue3.dequeue1.timeout(1 second).unsafeRunSync() should be(MoveToLobby(roomId, room.players.unsafeRunSync()))
         //================
 
         //================
         eventManager.interpret(userQueue4, Stream.eval(IO.pure(JoinGame(nickname4, roomId)))).unsafeRunSync()
 
-        room.users.unsafeRunSync() should contain allOf (User(nickname1), User(nickname2), User(nickname3), User(nickname4))
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname4))
-        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname4))
-        userQueue3.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname4))
-        userQueue4.dequeue1.timeout(1 second).unsafeRunSync() should be(JoinedRoom(room.info.unsafeRunSync()))
+        room.players.unsafeRunSync() should contain allOf (nickname1, nickname2, nickname3, nickname4)
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue3.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue4.dequeue1.timeout(1 second).unsafeRunSync() should be(MoveToLobby(roomId, room.players.unsafeRunSync()))
         //================
 
         //================
@@ -142,26 +143,121 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
           userQueue5,
           Stream.eval(IO.pure(JoinGame(nickname5, roomId))) ++ Stream.eval(IO.pure(StartGame))).unsafeRunSync()
 
-        room.users.unsafeRunSync() should contain allOf (User(nickname1), User(nickname2), User(nickname3), User(nickname4), User(nickname5))
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname5))
-        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname5))
-        userQueue3.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname5))
-        userQueue4.dequeue1.timeout(1 second).unsafeRunSync() should be(UserJoined(nickname5))
-        userQueue5.dequeue1.timeout(1 second).unsafeRunSync() should be(JoinedRoom(room.info.unsafeRunSync()))
+        room.players.unsafeRunSync() should contain allOf (nickname1, nickname2, nickname3, nickname4, nickname5)
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue3.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue4.dequeue1.timeout(1 second).unsafeRunSync() should be(ChangeInLobby(room.players.unsafeRunSync()))
+        userQueue5.dequeue1.timeout(1 second).unsafeRunSync() should be(MoveToLobby(roomId, room.players.unsafeRunSync()))
         //================
 
-        val resultMissions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
-        val users = List(User(nickname1), User(nickname2), User(nickname3), User(nickname4), User(nickname5))
-        def gameStarted(role: Role) = {
-          val charRole = CharacterRole.fromRole(role, List(nickname1, nickname2))
-          GameStarted(MissionProposing(1, User(nickname1)), resultMissions, charRole, users)
+        val users = List(nickname1, nickname2, nickname3, nickname4, nickname5)
+
+        def playerInfo(role: Role): PlayerInfo = {
+          val charRole = CharacterRole.fromRole(role, List(BadPlayerRole(nickname1, Assassin), BadPlayerRole(nickname2, NormalBadGuy)))
+          PlayerInfo(charRole.character, charRole.badGuys)
         }
 
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(gameStarted(Assassin))
-        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(gameStarted(NormalBadGuy))
-        userQueue3.dequeue1.timeout(1 second).unsafeRunSync() should be(gameStarted(Merlin))
-        userQueue4.dequeue1.timeout(1 second).unsafeRunSync() should be(gameStarted(NormalGoodGuy))
-        userQueue5.dequeue1.timeout(1 second).unsafeRunSync() should be(gameStarted(NormalGoodGuy))
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(playerInfo(Assassin))
+        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(playerInfo(NormalBadGuy))
+        userQueue3.dequeue1.timeout(1 second).unsafeRunSync() should be(playerInfo(Merlin))
+        userQueue4.dequeue1.timeout(1 second).unsafeRunSync() should be(playerInfo(NormalGoodGuy))
+        userQueue5.dequeue1.timeout(1 second).unsafeRunSync() should be(playerInfo(NormalGoodGuy))
+      }
+    }
+  }
+
+  test("Make sure we send PlayerInfo messages to _everyone_ when the game is started") {
+    forAll { (roomId: RoomId, gameConfig: GameConfig) =>
+      new context {
+
+        val sendToAllUserSpecificRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+
+        val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+
+        val mockOutgoingManager: OutgoingManager[IO] = new OutgoingManager[IO] {
+          override def add(usernameWithSend: UsernameWithSend[IO]): IO[Unit] = IO.unit
+          override def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = IO.unit
+          override def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] = IO.unit
+          override def sendToAll(event: OutgoingEvent): IO[Unit] = IO.unit
+          override def sendToAllUserSpecific(outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] =
+            sendToAllUserSpecificRef.set(Some(outgoingF(nickname1).unsafeRunSync()))
+        }
+
+        val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
+          override def create(roomId: RoomId): IO[Unit] = IO.unit
+          override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
+            new Room[IO] {
+              override def players: IO[List[Nickname]] = IO(Nil)
+              override def addUser(player: Nickname): IO[Unit] = IO.unit
+              override def startGame: IO[AllPlayerRoles] = IO.pure(AllPlayerRoles(Nil, List(BadPlayerRole(nickname1, Assassin))))
+              override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = ???
+              override def proposeMission(nickname: Nickname, users: List[Nickname]): IO[MissionProposal] = ???
+              override def vote(nickname: Nickname, vote: Vote): IO[Unit] = ???
+            }
+          }
+        }
+
+        val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
+
+        override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
+          override def generate: IO[RoomId] = IO.pure(roomId)
+        }
+
+        val eventManager: EventManager[IO] = EventManager.buildOutgoing[IO](mockRoomManager, mockRoomIdGenerator, outgoingRef)
+        val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
+
+        eventManager.interpret(userQueue, Stream.eval(IO.pure(JoinGame(nickname1, roomId))) ++ Stream.eval(IO.pure(StartGame))).unsafeRunSync()
+        sendToAllUserSpecificRef.get.unsafeRunSync() should be(
+          Some(PlayerInfo(Assassin, Some(List(BadPlayerRole(nickname1, Assassin))))))
+      }
+    }
+  }
+
+  test("Make sure we send the TeamAssignmentPhase to _everyone_ when the Game decides it is time") {
+    forAll { (roomId: RoomId, gameConfig: GameConfig) =>
+      new context {
+
+        val sendToAllRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+
+        val mockOutgoingManager: OutgoingManager[IO] = new OutgoingManager[IO] {
+          override def add(usernameWithSend: UsernameWithSend[IO]): IO[Unit] = IO.unit
+          override def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = IO.unit
+          override def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] = IO.unit
+          override def sendToAll(event: OutgoingEvent): IO[Unit] = sendToAllRef.set(Some(event))
+          def sendToAllUserSpecific(outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] = IO.unit
+        }
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+        val mockAllReady = AllReady(1, Nickname("Blah"), missions)
+
+        val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
+          override def create(roomId: RoomId): IO[Unit] = IO.unit
+          override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
+            new Room[IO] {
+              override def players: IO[List[Nickname]] = IO(Nil)
+              override def addUser(player: Nickname): IO[Unit] = IO.unit
+              override def startGame: IO[AllPlayerRoles] = ???
+              override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = IO.pure(AllReady(1, Nickname("Blah"), missions))
+              override def proposeMission(nickname: Nickname, users: List[Nickname]): IO[MissionProposal] = ???
+              override def vote(nickname: Nickname, vote: Vote): IO[Unit] = IO.unit
+            }
+          }
+        }
+
+        val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
+
+        override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
+          override def generate: IO[RoomId] = IO.pure(roomId)
+        }
+        val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+
+        val eventManager: EventManager[IO] = EventManager.buildOutgoing[IO](mockRoomManager, mockRoomIdGenerator, outgoingRef)
+        val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
+
+        eventManager.interpret(userQueue, Stream.eval(IO.pure(JoinGame(nickname1, roomId))) ++ Stream.eval(IO.pure(PlayerReady))).unsafeRunSync()
+        sendToAllRef.get.unsafeRunSync() should be(
+          Some(TeamAssignmentPhase(mockAllReady.missionNumber, mockAllReady.missionLeader, mockAllReady.missions)))
       }
     }
   }
