@@ -68,12 +68,10 @@ object EventManager {
                 (for {
                   ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
                   room          <- roomManager.get(ctx.roomId)
-                  repr          <- room.startGame
-                  outgoingEvent <- playerRole(ctx.nickname, repr)
+                  roles         <- room.startGame
                   mapping       <- outgoingRef.get
                   outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-                  _             <- outgoing.broadcastUserSpecific(ctx.nickname, playerRole(_, repr).widen[OutgoingEvent])
-                  _             <- respond.enqueue1(outgoingEvent)
+                  _             <- outgoing.sendToAllUserSpecific(playerRole(_, roles).widen[OutgoingEvent])
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error while starting game for ???,  ${t.getStackTrace}"))
                 }
@@ -125,8 +123,10 @@ trait OutgoingManager[F[_]] {
   def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit]
   def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => F[OutgoingEvent]): F[Unit]
   def sendToAll(event: OutgoingEvent): F[Unit]
+  def sendToAllUserSpecific(outgoingF: Nickname => F[OutgoingEvent]): F[Unit]
 }
 
+//needs tests to make sure it properly sends out the messages
 object OutgoingManager {
   def build[F[_]: Par](usernameWithSend: UsernameWithSend[F])(implicit F: Concurrent[F]): F[OutgoingManager[F]] =
     Ref.of[F, List[UsernameWithSend[F]]](List(usernameWithSend)).map { ref =>
@@ -142,7 +142,10 @@ object OutgoingManager {
             l.filter(_.nickname =!= nickname).parTraverse(u => outgoingF(u.nickname).flatMap(u.respond.enqueue1))
           }.void
 
-        def sendToAll(event: OutgoingEvent): F[Unit] = ref.get.flatMap(_.parTraverse(u => u.respond.enqueue1(event))).void
+        def sendToAll(event: OutgoingEvent): F[Unit] = sendToAllUserSpecific(_ => F.pure(event))
+
+        def sendToAllUserSpecific(outgoingF: Nickname => F[OutgoingEvent]): F[Unit] =
+          ref.get.flatMap(_.parTraverse(u => outgoingF(u.nickname).flatMap(event => u.respond.enqueue1(event))).void)
       }
     }
 }

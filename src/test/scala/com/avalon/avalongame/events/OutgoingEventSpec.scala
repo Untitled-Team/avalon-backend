@@ -99,7 +99,7 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     Json.obj(
       "action" := "PlayerInfo",
       "character" := playerRoleEvent.character,
-      "badGuys" := playerRoleEvent.badGuys
+      "badGuys" := playerRoleEvent.badGuys.map(_.map(_.nickname))
     )
 
   def teamAssignmentEventJson(missionProposalEvent: TeamAssignmentPhase): Json =

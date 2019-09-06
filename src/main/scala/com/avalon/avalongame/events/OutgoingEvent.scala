@@ -24,7 +24,9 @@ object ChangeInLobby {
 case class PlayerInfo(character: Role, badGuys: Option[List[BadPlayerRole]]) extends OutgoingEvent
 
 object PlayerInfo {
-  implicit val encoder: Encoder[PlayerInfo] = deriveEncoder
+  implicit val encoder: Encoder[PlayerInfo] = Encoder.instance { info =>
+    Json.obj("character" := info.character, "badGuys" := info.badGuys.map(_.map(_.nickname)))
+  }
 }
 
 //roomInfo?

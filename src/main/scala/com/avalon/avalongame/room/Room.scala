@@ -17,7 +17,7 @@ trait Room[F[_]] {
 //  def info: F[RoomInfo]
   def players: F[List[Nickname]]
   def addUser(player: Nickname): F[Unit]
-  def startGame: F[GameRepresentation]
+  def startGame: F[AllPlayerRoles]
   def playerReady(nickname: Nickname): F[PlayerReadyEnum]
   def proposeMission(nickname: Nickname, users: List[Nickname]): F[MissionProposal]
   def vote(nickname: Nickname, vote: Vote): F[Unit]
@@ -42,7 +42,7 @@ object Room {
               mvar.put(room.copy(room.players :+ player))
           }
 
-        def startGame: F[GameRepresentation] =
+        def startGame: F[AllPlayerRoles] =
           mvar.take.flatMap { room =>
             (for {
               missions      <- F.fromEither(Missions.fromPlayers(room.players.size))
@@ -50,7 +50,7 @@ object Room {
 //              missionLeader <- randomAlg.randomGet(room.players)
               repr          =  GameRepresentation(PlayersReadingRole(Nil), missions, roles.badGuys, roles.goodGuys, room.players)
               _             <- mvar.put(room.copy(gameRepresentation = Some(repr)))
-            } yield repr)
+            } yield AllPlayerRoles(repr.goodGuys, repr.badGuys))
               .guaranteeCase {
                 case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
                 case ExitCase.Completed => F.unit

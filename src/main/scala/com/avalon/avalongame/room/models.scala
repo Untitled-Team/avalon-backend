@@ -111,6 +111,8 @@ case class MissionProposing(missionNumber: Int, missionLeader: Nickname) extends
 case class MissionVoting(missionNumber: Int, missionLeader: Nickname, users: List[Nickname], votes: List[TeamAssignmentVote]) extends GameState
 case class MissionProposed(voters: NonEmptyList[User]) extends GameState
 
+case class AllPlayerRoles(goodGuys: List[GoodPlayerRole], badGuys: List[BadPlayerRole])
+
 case class GameRepresentation(state: GameState,
                               missions: Missions,
                               badGuys: List[BadPlayerRole],

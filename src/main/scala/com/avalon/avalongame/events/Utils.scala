@@ -18,7 +18,7 @@ object Utils {
 //    }
 //  }
 
-  def playerRole[F[_]](nickname: Nickname, repr: GameRepresentation)(implicit F: Sync[F]): F[PlayerInfo] = {
+  def playerRole[F[_]](nickname: Nickname, repr: AllPlayerRoles)(implicit F: Sync[F]): F[PlayerInfo] = {
     val playerRole = F.fromOption(
       repr.goodGuys.find(_.nickname === nickname) orElse repr.badGuys.find(_.nickname === nickname),
       NoRoleForNickname(nickname))

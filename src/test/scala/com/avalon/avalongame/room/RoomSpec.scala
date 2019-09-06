@@ -68,6 +68,32 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
     }
   }
 
+  test("Succeed at Starting the game and returning good guys and bad guys") {
+    forAll { (roomId: RoomId, config: GameConfig) =>
+
+      val user1 = Nickname("Taylor")
+      val user2 = Nickname("Nick")
+      val user3 = Nickname("Chris")
+      val user4 = Nickname("Carter")
+      val user5 = Nickname("Austin")
+
+      val users = List(user1, user2, user3, user4, user5)
+
+      val room = Room.build(mockRandomAlg, roomId, config).unsafeRunSync()
+
+      room.addUser(user1).unsafeRunSync()
+      room.addUser(user2).unsafeRunSync()
+      room.addUser(user3).unsafeRunSync()
+      room.addUser(user4).unsafeRunSync()
+      room.addUser(user5).unsafeRunSync()
+
+      val result = room.startGame.unsafeRunSync()
+
+      result.badGuys should contain allOf(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy))
+      result.goodGuys should contain allOf(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
+    }
+  }
+
   test("Succeed at allowing users to ready up after the game has been started") {
     forAll { (roomId: RoomId, config: GameConfig) =>
 
