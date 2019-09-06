@@ -58,10 +58,6 @@ class IncomingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     Json.obj(
       actionKey := "CreateGame",
       "nickname" := createGame.nickname,
-      "config" := Json.obj(
-        "merlin" := createGame.config.merlin,
-        "assassin" := createGame.config.assassin
-      )
     )
 
   def joinGameJson(joinGame: JoinGame): Json =

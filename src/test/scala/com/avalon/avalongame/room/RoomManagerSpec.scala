@@ -22,7 +22,7 @@ class RoomManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChec
 
       val roomManager = RoomManager.build[IO](mockRandomAlg).unsafeRunSync()
 
-      roomManager.create(chatId, config).unsafeRunSync()
+      roomManager.create(chatId).unsafeRunSync()
 
       val room = roomManager.get(chatId).unsafeRunSync()
 

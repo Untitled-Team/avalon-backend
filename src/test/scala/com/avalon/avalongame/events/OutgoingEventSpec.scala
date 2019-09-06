@@ -54,14 +54,6 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     }
   }
 
-//  test("make sure we can encode GameStarted event") {
-//    forAll { gameStarted: GameStarted =>
-//      val json = gameStartedJson(gameStarted)
-//
-//      json should be(OutgoingEventEncoder.encoder(gameStarted))
-//    }
-//  }
-
   test("make sure we can encode TeamAssignmentPhase event") {
     forAll { teamAssignmentEvent: TeamAssignmentPhase =>
       val json = teamAssignmentEventJson(teamAssignmentEvent)
@@ -82,18 +74,6 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "action" := "ChangeInLobby",
       "players" := joinedRoom.players
     )
-
-//  def gameStartedJson(gameStarted: GameStarted): Json =
-//    Json.obj(
-//      "action" := "GameStarted",
-//      "state" := gameStarted.state, //need to test this separately
-//      "missions" := gameStarted.missions,
-//      "playerRole" := Json.obj(
-//        "character" := gameStarted.playerRole.character,
-//        "badGuys" := gameStarted.playerRole.badGuys
-//      ),
-//      "users" := gameStarted.users
-//    )
 
   def playerRoleEventJson(playerRoleEvent: PlayerInfo): Json =
     Json.obj(

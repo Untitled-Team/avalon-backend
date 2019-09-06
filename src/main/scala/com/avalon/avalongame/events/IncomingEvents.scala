@@ -7,7 +7,7 @@ import io.circe.syntax._
 import io.circe.{Encoder, _}
 
 sealed trait IncomingEvent
-final case class CreateGame(nickname: Nickname, config: GameConfig) extends IncomingEvent
+final case class CreateGame(nickname: Nickname) extends IncomingEvent
 
 object CreateGame {
   implicit val decoder: Decoder[CreateGame] = deriveDecoder

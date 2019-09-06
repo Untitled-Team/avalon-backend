@@ -55,7 +55,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
         val userQueue3 = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
         //================
-        eventManager.interpret(userQueue, Stream.eval(IO.pure(CreateGame(nickname1, gameConfig)))).unsafeRunSync()
+        eventManager.interpret(userQueue, Stream.eval(IO.pure(CreateGame(nickname1)))).unsafeRunSync()
 
         val room = roomManager.get(roomId).unsafeRunSync()
         room.players.unsafeRunSync() should be(List(nickname1))
@@ -104,7 +104,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
         val userQueue5 = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
         //================
-        eventManager.interpret(userQueue, Stream.eval(IO.pure(CreateGame(nickname1, gameConfig)))).unsafeRunSync()
+        eventManager.interpret(userQueue, Stream.eval(IO.pure(CreateGame(nickname1)))).unsafeRunSync()
 
         val room = roomManager.get(roomId).unsafeRunSync()
         room.players.unsafeRunSync() should be(List(nickname1))
@@ -185,7 +185,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
         }
 
         val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-          override def create(roomId: RoomId, config: GameConfig): IO[Unit] = IO.unit
+          override def create(roomId: RoomId): IO[Unit] = IO.unit
           override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
             new Room[IO] {
               override def players: IO[List[Nickname]] = IO(Nil)
@@ -232,7 +232,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
         val mockAllReady = AllReady(1, Nickname("Blah"), missions)
 
         val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-          override def create(roomId: RoomId, config: GameConfig): IO[Unit] = IO.unit
+          override def create(roomId: RoomId): IO[Unit] = IO.unit
           override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
             new Room[IO] {
               override def players: IO[List[Nickname]] = IO(Nil)

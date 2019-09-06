@@ -7,7 +7,7 @@ import com.avalon.avalongame.RandomAlg
 import com.avalon.avalongame.common._
 
 trait RoomManager[F[_]] {
-  def create(roomId: RoomId, config: GameConfig): F[Unit]
+  def create(roomId: RoomId): F[Unit]
   def get(roomId: RoomId): F[Room[F]]
 //  def addUser(roomId: RoomId, user: User): F[Unit]
 //  def userEvents(user: User): Stream[F, Event]
@@ -20,7 +20,7 @@ object RoomManager {
     Ref.of[F, Map[RoomId, Room[F]]](Map.empty).map { ref =>
       new RoomManager[F] {
         //should fail if the room already existed?
-        def create(roomId: RoomId, config: GameConfig): F[Unit] = Room.build(randomAlg, roomId, config).flatMap { room =>
+        def create(roomId: RoomId): F[Unit] = Room.build(randomAlg, roomId).flatMap { room =>
           ref.update(rooms => if (rooms.get(roomId).isEmpty) rooms + (roomId -> room) else rooms)
         }
 

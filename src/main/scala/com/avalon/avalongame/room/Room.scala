@@ -26,7 +26,7 @@ trait Room[F[_]] {
 object Room {
 
   //timeouts on get/reads?
-  def build[F[_]](randomAlg: RandomAlg[F], roomId: RoomId, config: GameConfig)(implicit F: Concurrent[F]): F[Room[F]] =
+  def build[F[_]](randomAlg: RandomAlg[F], roomId: RoomId)(implicit F: Concurrent[F]): F[Room[F]] =
     MVar.of(InternalRoom(Nil, None)).map { mvar =>
       new Room[F] {
 //        def info: F[RoomInfo] = players.map(RoomInfo(_, config))

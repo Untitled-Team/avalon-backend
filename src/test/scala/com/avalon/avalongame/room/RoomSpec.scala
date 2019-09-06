@@ -21,7 +21,7 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
 
   test("Fail when we try to start a game with fewer than 5 players") {
     forAll { (roomId: RoomId, config: GameConfig) =>
-      val room = Room.build(mockRandomAlg, roomId, config).unsafeRunSync()
+      val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
 
       room.startGame.attempt.unsafeRunSync() should be(Left(NotEnoughPlayers(0)))
     }
@@ -33,7 +33,7 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
       val user1 = Nickname("Taylor")
       val user2 = Nickname("Taylor")
 
-      val room = Room.build(mockRandomAlg, roomId, config).unsafeRunSync()
+      val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
 
       room.players.unsafeRunSync() should be(Nil)
 
@@ -54,7 +54,7 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
       val user5 = Nickname("Austin")
 
 
-      val room = Room.build(mockRandomAlg, roomId, config).unsafeRunSync()
+      val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
 
       room.players.unsafeRunSync() should be(Nil)
 
@@ -79,7 +79,7 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
 
       val users = List(user1, user2, user3, user4, user5)
 
-      val room = Room.build(mockRandomAlg, roomId, config).unsafeRunSync()
+      val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
 
       room.addUser(user1).unsafeRunSync()
       room.addUser(user2).unsafeRunSync()
@@ -105,7 +105,7 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
 
       val users = List(user1, user2, user3, user4, user5)
 
-      val room = Room.build(mockRandomAlg, roomId, config).unsafeRunSync()
+      val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
 
       room.addUser(user1).unsafeRunSync()
       room.addUser(user2).unsafeRunSync()
@@ -136,7 +136,7 @@ class RoomSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with
 
       val users = List(user1, user2, user3, user4, user5)
 
-      val room = Room.build(mockRandomAlg, roomId, config).unsafeRunSync()
+      val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
 
       room.addUser(user1).unsafeRunSync()
       room.addUser(user2).unsafeRunSync()

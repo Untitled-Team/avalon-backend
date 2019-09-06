@@ -34,10 +34,10 @@ object EventManager {
         def interpret(respond: Queue[F, OutgoingEvent], events: Stream[F, IncomingEvent]): F[Unit] =
           Stream.eval(Ref.of[F, Option[ConnectionContext]](None)).flatMap { context =>
             events.evalMap {
-              case CreateGame(nickname, config) => //can't do this if ConnectionContext exists
+              case CreateGame(nickname) => //can't do this if ConnectionContext exists
                 (for {
                   roomId   <- roomIdGenerator.generate
-                  _        <- roomManager.create(roomId, config)
+                  _        <- roomManager.create(roomId)
                   room     <- roomManager.get(roomId)
                   _        <- room.addUser(nickname)
                   outgoing <- OutgoingManager.build[F](UsernameWithSend[F](nickname, respond))
