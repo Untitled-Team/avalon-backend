@@ -23,7 +23,14 @@ object EventEncoders {
 //  }
 
   implicit val missionEncoder: Encoder[Mission] = Encoder.instance { m =>
-    Json.obj("players" := m.players, "numberOfAdventurers" := m.numberOfAdventurers)
+    Json.obj(
+      "players" := m.players,
+      "numberOfAdventurers" := m.numberOfAdventurers,
+      "pass" := true,
+      "votes" := Json.obj(
+        "passVotes" := None,
+        "failVotes" := None
+      ))
   }
 
   implicit val missionsEncoder: Encoder[Missions] = Encoder.instance { m =>
