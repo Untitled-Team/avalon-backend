@@ -22,8 +22,10 @@ trait Room[F[_]] {
 
 object Room {
 
-  //timeouts on get/reads?
-  def build[F[_]](randomAlg: RandomAlg[F], roomId: RoomId)(implicit F: Concurrent[F]): F[Room[F]] =
+  private[room] def buildPrivate[F[_]](randomAlg: RandomAlg[F],
+                                       roomId: RoomId,
+                                       gameRepresentation: Option[GameRepresentation],
+                                       players: List[Nickname])(implicit F: Concurrent[F]): F[Room[F]] =
     MVar.of(InternalRoom(Nil, None)).map { mvar =>
       new Room[F] {
         def state: F[Option[GameState]] = mvar.read.map(_.gameRepresentation.map(_.state))
@@ -155,6 +157,10 @@ object Room {
           }
       }
     }
+
+  //timeouts on get/reads?
+  def build[F[_]](randomAlg: RandomAlg[F], roomId: RoomId)(implicit F: Concurrent[F]): F[Room[F]] =
+    buildPrivate(randomAlg, roomId, None, Nil)
 }
 
 sealed trait TeamVoteEnum
