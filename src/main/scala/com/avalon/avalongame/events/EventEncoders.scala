@@ -27,12 +27,7 @@ object EventEncoders {
   }
 
   implicit val missionsEncoder: Encoder[Missions] = Encoder.instance { m =>
-    Json.obj(
-      "one" := m.one,
-      "two" := m.two,
-      "three" := m.three,
-      "four" := m.four,
-      "five" := m.five)
+    Json.fromValues(List(m.one.asJson, m.two.asJson, m.three.asJson, m.four.asJson, m.five.asJson))
   }
 
   implicit val characterEncoder: Encoder[Role] = Encoder.encodeString.contramap {
