@@ -91,7 +91,7 @@ object Room {
               repr <- F.fromOption(room.gameRepresentation, GameNotStarted)
               proposal <- repr.state match {
                 case m@MissionProposing(_, _) => F.pure(m)
-                case _ => F.raiseError(InvalidStateTransition(repr.state, "proposeMission", nickname))
+                case _ => F.raiseError[MissionProposing](InvalidStateTransition(repr.state, "proposeMission", nickname))
               }
               _ <-
                 if (proposal.missionLeader === nickname) F.unit
@@ -131,7 +131,7 @@ object Room {
                 else
                   StillVoting
 
-              updatedRepr <- result match {
+              updatedRepr: GameRepresentation <- result match {
                 case StillVoting => F.pure(repr.copy(state = updatedState))
                 case FailedVote(votes) =>
                   F.fromEither(Missions.addFailedVote(repr.missions, proposal.missionNumber, votes)).map { m =>

@@ -193,7 +193,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               override def startGame: IO[AllPlayerRoles] = IO.pure(AllPlayerRoles(Nil, List(BadPlayerRole(nickname1, Assassin))))
               override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = ???
               override def proposeMission(nickname: Nickname, users: List[Nickname]): IO[MissionProposal] = ???
-              override def vote(nickname: Nickname, vote: TeamVote): IO[Unit] = ???
+              def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
             }
           }
         }
@@ -240,7 +240,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               override def startGame: IO[AllPlayerRoles] = ???
               override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = IO.pure(AllReady(1, Nickname("Blah"), missions))
               override def proposeMission(nickname: Nickname, users: List[Nickname]): IO[MissionProposal] = ???
-              override def vote(nickname: Nickname, vote: TeamVote): IO[Unit] = IO.unit
+              def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
             }
           }
         }
@@ -290,7 +290,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = IO.pure(AllReady(1, Nickname("Blah"), missions))
               override def proposeMission(nickname: Nickname, players: List[Nickname]): IO[MissionProposal] =
                 IO.pure(MissionProposal(1, nickname1, players))
-              override def vote(nickname: Nickname, vote: TeamVote): IO[Unit] = IO.unit
+              def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
             }
           }
         }
