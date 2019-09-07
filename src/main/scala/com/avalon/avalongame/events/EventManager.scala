@@ -93,17 +93,17 @@ object EventManager {
                 }
 
               case TeamAssignment(players) => F.unit
-//                (for {
-//                  ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
-//                  room          <- roomManager.get(ctx.roomId)
-//                  proposal      <- room.proposeMission(ctx.nickname, players)
-//                  outgoingEvent =  TeamAssignmentPhase(proposal.missionNumber, proposal.missionLeader, proposal.users)
-//                  mapping       <- outgoingRef.get
-//                  outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-//                  _             <- outgoing.sendToAll(outgoingEvent)
-//                } yield ()).onError {
-//                  case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
-//                }
+                (for {
+                  ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
+                  room          <- roomManager.get(ctx.roomId)
+                  proposal      <- room.proposeMission(ctx.nickname, players)
+                  outgoingEvent =  TeamAssignmentOutgoing(proposal.players)
+                  mapping       <- outgoingRef.get
+                  outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+                  _             <- outgoing.sendToAll(outgoingEvent)
+                } yield ()).onError {
+                  case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
+                }
 
               case TeamAssignmentVote(_, _) => F.unit
             }

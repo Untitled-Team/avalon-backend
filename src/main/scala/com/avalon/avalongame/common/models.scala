@@ -59,8 +59,9 @@ object RoomInfo {
 
 case object NoRoomFoundForChatId extends RuntimeException with NoStackTrace
 
-case class Vote(value: Boolean) extends AnyVal
-object Vote {
-  implicit val decoder: Decoder[Vote] = deriveUnwrappedDecoder
-  implicit val encoder: Encoder[Vote] = deriveUnwrappedEncoder
+case class TeamVote(value: Boolean) extends AnyVal
+object TeamVote {
+  implicit val decoder: Decoder[TeamVote] = deriveUnwrappedDecoder
+  implicit val encoder: Encoder[TeamVote] = deriveUnwrappedEncoder
+  implicit val eq: Eq[TeamVote] = Eq.fromUniversalEquals
 }

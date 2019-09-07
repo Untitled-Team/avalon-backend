@@ -7,20 +7,17 @@ import cats.implicits._
 import com.avalon.avalongame.RandomAlg
 import com.avalon.avalongame.common._
 
-import scala.util.control.NoStackTrace
-
 sealed trait PlayerReadyEnum
 case class NotReadyYet(nicknames: List[Nickname]) extends PlayerReadyEnum
 case class AllReady(missionNumber: Int, missionLeader: Nickname, missions: Missions) extends PlayerReadyEnum
 
 trait Room[F[_]] {
-//  def info: F[RoomInfo]
   def players: F[List[Nickname]]
   def addUser(player: Nickname): F[Unit]
   def startGame: F[AllPlayerRoles]
   def playerReady(nickname: Nickname): F[PlayerReadyEnum]
   def proposeMission(nickname: Nickname, users: List[Nickname]): F[MissionProposal]
-  def vote(nickname: Nickname, vote: Vote): F[Unit]
+  def teamVote(nickname: Nickname, vote: TeamVote): F[TeamVoteEnum]
 }
 
 object Room {
@@ -29,11 +26,10 @@ object Room {
   def build[F[_]](randomAlg: RandomAlg[F], roomId: RoomId)(implicit F: Concurrent[F]): F[Room[F]] =
     MVar.of(InternalRoom(Nil, None)).map { mvar =>
       new Room[F] {
-//        def info: F[RoomInfo] = players.map(RoomInfo(_, config))
+        def state: F[Option[GameState]] = mvar.read.map(_.gameRepresentation.map(_.state))
 
         def players: F[List[Nickname]] = mvar.read.map(_.players)
 
-        //need to enforce that this is only possible when no game representation?
         def addUser(player: Nickname): F[Unit] =
           mvar.take.flatMap { room =>
             if (room.players.contains(player))
@@ -49,7 +45,6 @@ object Room {
             (for {
               missions      <- F.fromEither(Missions.fromPlayers(room.players.size))
               roles         <- Utils.assignRoles(room.players, randomAlg.shuffle)
-//              missionLeader <- randomAlg.randomGet(room.players)
               repr          =  GameRepresentation(PlayersReadingRole(Nil), missions, roles.badGuys, roles.goodGuys, room.players)
               _             <- mvar.put(room.copy(gameRepresentation = Some(repr)))
             } yield AllPlayerRoles(repr.goodGuys, repr.badGuys))
@@ -115,10 +110,54 @@ object Room {
               }
           }
 
-        def vote(nickname: Nickname, vote: Vote): F[Unit] = F.unit
-//          mvar.take.flatMap { room =>
-//
-//          }
+        def teamVote(nickname: Nickname, vote: TeamVote): F[TeamVoteEnum] =
+          mvar.take.flatMap { room =>
+            (for {
+              repr <- F.fromOption(room.gameRepresentation, GameNotStarted)
+              proposal <- repr.state match {
+                case m@MissionVoting(_, _, _, _) => F.pure(m)
+                case _ => F.raiseError[MissionVoting](InvalidStateTransition(repr.state, "teamVote", nickname))
+              }
+              updatedState <-
+                if (proposal.votes.map(_.nickname).contains(nickname))
+                  F.raiseError[MissionVoting](PlayerCantVoteMoreThanOnce(nickname))
+                else F.pure(proposal.copy(votes = proposal.votes :+ PlayerTeamVote(nickname, vote)))
+
+              result: TeamVoteEnum =
+                if (updatedState.votes.size === room.players.size) //more precise check that all names appear
+                  if (updatedState.votes.filter(_.vote === TeamVote(false)).size === 1) // fix
+                    FailedVote(updatedState.votes)
+                  else SuccessfulVote(updatedState.votes)
+                else
+                  StillVoting
+
+              updatedRepr <- result match {
+                case StillVoting => F.pure(repr.copy(state = updatedState))
+                case FailedVote(votes) =>
+                  F.fromEither(Missions.addFailedVote(repr.missions, proposal.missionNumber, votes)).map { m =>
+                    repr.copy(
+                      state = MissionProposing(proposal.missionNumber, proposal.missionLeader),
+                      missions = m)
+                  }
+                case SuccessfulVote(votes) =>
+                  F.fromEither(Missions.addQuesters(repr.missions, proposal.missionNumber, proposal.users)).map { m =>
+                    repr.copy(
+                      state = QuestPhase(proposal.missionNumber, proposal.users),
+                      missions = m)
+                  }
+              }
+              _ <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
+            } yield result)
+              .guaranteeCase {
+                case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
+                case ExitCase.Completed => F.unit
+              }
+          }
       }
     }
 }
+
+sealed trait TeamVoteEnum
+case object StillVoting extends TeamVoteEnum
+case class FailedVote(votes: List[PlayerTeamVote]) extends TeamVoteEnum
+case class SuccessfulVote(votes: List[PlayerTeamVote]) extends TeamVoteEnum
