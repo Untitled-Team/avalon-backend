@@ -28,7 +28,7 @@ object TeamAssignment {
   implicit val decoder: Decoder[TeamAssignment] = deriveDecoder
 }
 
-case class TeamAssignmentVote(nickname: Nickname, vote: TeamVote) extends IncomingEvent
+case class TeamAssignmentVote(vote: TeamVote) extends IncomingEvent
 object TeamAssignmentVote {
   implicit val encoder: Encoder[TeamAssignmentVote] = deriveEncoder
   implicit val decoder: Decoder[TeamAssignmentVote] = deriveDecoder

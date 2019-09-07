@@ -348,39 +348,223 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
       }
     }
 
-//    "fail if we call it from the wrong state" in {
-//      forAll { (roomId: RoomId, config: GameConfig) =>
-//
-//        val user1 = Nickname("Taylor")
-//        val user2 = Nickname("Nick")
-//        val user3 = Nickname("Chris")
-//        val user4 = Nickname("Carter")
-//        val user5 = Nickname("Austin")
-//
-//        val users = List(user1, user2, user3, user4, user5)
-//
-//        val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
-//
-//        room.addUser(user1).unsafeRunSync()
-//        room.addUser(user2).unsafeRunSync()
-//        room.addUser(user3).unsafeRunSync()
-//        room.addUser(user4).unsafeRunSync()
-//        room.addUser(user5).unsafeRunSync()
-//
-//        room.startGame.unsafeRunSync()
-//
-//        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
-//
-//        room.playerReady(user1).unsafeRunSync() should be(NotReadyYet(List(user2, user3, user4, user5)))
-//        room.playerReady(user2).unsafeRunSync() should be(NotReadyYet(List(user3, user4, user5)))
-//        room.playerReady(user3).unsafeRunSync() should be(NotReadyYet(List(user4, user5)))
-//        room.playerReady(user4).unsafeRunSync() should be(NotReadyYet(List(user5)))
-//        room.playerReady(user5).unsafeRunSync() should be(AllReady(1, user1, missions))
-//
-//        val proposal = room.teamVote(user1, TeamVote(false)).attempt.unsafeRunSync()
-//
-//        proposal should be(Left(InvalidStateTransition(MissionProposing(1, user1), "teamVote", user1)))
-//      }
-//    }
+    "return StillVoting if we're still waiting for others to vote" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          MissionVoting(1, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, Some(gr), users).unsafeRunSync()
+
+        val proposal = room.teamVote(user1, TeamVote(false)).unsafeRunSync()
+
+        proposal should be(StillVoting)
+      }
+    }
+
+    "return FailedVote if we're still waiting for others to vote" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          MissionVoting(1, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, Some(gr), users).unsafeRunSync()
+
+        val result1 = room.teamVote(user1, TeamVote(false)).unsafeRunSync()
+        val result2 = room.teamVote(user2, TeamVote(false)).unsafeRunSync()
+        val result3 = room.teamVote(user3, TeamVote(false)).unsafeRunSync()
+        val result4 = room.teamVote(user4, TeamVote(false)).unsafeRunSync()
+        val result5 = room.teamVote(user5, TeamVote(false)).unsafeRunSync()
+
+        result1 should be(StillVoting)
+        result2 should be(StillVoting)
+        result3 should be(StillVoting)
+        result4 should be(StillVoting)
+        result5 should be(
+          FailedVote(
+            user2,
+            List(
+              PlayerTeamVote(user1, TeamVote(false)),
+              PlayerTeamVote(user2, TeamVote(false)),
+              PlayerTeamVote(user3, TeamVote(false)),
+              PlayerTeamVote(user4, TeamVote(false)),
+              PlayerTeamVote(user5, TeamVote(false)),
+            )))
+      }
+    }
+
+    "return SuccessfulVote if we have majority true votes" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          MissionVoting(1, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, Some(gr), users).unsafeRunSync()
+
+        val result1 = room.teamVote(user1, TeamVote(true)).unsafeRunSync()
+        val result2 = room.teamVote(user2, TeamVote(true)).unsafeRunSync()
+        val result3 = room.teamVote(user3, TeamVote(true)).unsafeRunSync()
+        val result4 = room.teamVote(user4, TeamVote(false)).unsafeRunSync()
+        val result5 = room.teamVote(user5, TeamVote(false)).unsafeRunSync()
+
+        result1 should be(StillVoting)
+        result2 should be(StillVoting)
+        result3 should be(StillVoting)
+        result4 should be(StillVoting)
+        result5 should be(
+          SuccessfulVote(
+            List(
+              PlayerTeamVote(user1, TeamVote(true)),
+              PlayerTeamVote(user2, TeamVote(true)),
+              PlayerTeamVote(user3, TeamVote(true)),
+              PlayerTeamVote(user4, TeamVote(false)),
+              PlayerTeamVote(user5, TeamVote(false)),
+            )))
+      }
+    }
+
+    "fail when there is a tied vote" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+        val user6 = Nickname("Liran")
+
+        val users = List(user1, user2, user3, user4, user5, user6)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          MissionVoting(1, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy), GoodPlayerRole(user6, NormalGoodGuy)),
+          users)
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, Some(gr), users).unsafeRunSync()
+
+        val result1 = room.teamVote(user1, TeamVote(true)).unsafeRunSync()
+        val result2 = room.teamVote(user2, TeamVote(true)).unsafeRunSync()
+        val result3 = room.teamVote(user3, TeamVote(true)).unsafeRunSync()
+        val result4 = room.teamVote(user4, TeamVote(false)).unsafeRunSync()
+        val result5 = room.teamVote(user5, TeamVote(false)).unsafeRunSync()
+        val result6 = room.teamVote(user6, TeamVote(false)).unsafeRunSync()
+
+        result1 should be(StillVoting)
+        result2 should be(StillVoting)
+        result3 should be(StillVoting)
+        result4 should be(StillVoting)
+        result5 should be(StillVoting)
+        result6 should be(
+          FailedVote(
+            user2,
+            List(
+              PlayerTeamVote(user1, TeamVote(true)),
+              PlayerTeamVote(user2, TeamVote(true)),
+              PlayerTeamVote(user3, TeamVote(true)),
+              PlayerTeamVote(user4, TeamVote(false)),
+              PlayerTeamVote(user5, TeamVote(false)),
+              PlayerTeamVote(user6, TeamVote(false)),
+            )))
+      }
+    }
+
+    "be able to propose a mission after a failed vote" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+        val user6 = Nickname("Liran")
+
+        val users = List(user1, user2, user3, user4, user5, user6)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          MissionVoting(1, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy), GoodPlayerRole(user6, NormalGoodGuy)),
+          users)
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, Some(gr), users).unsafeRunSync()
+
+        val result1 = room.teamVote(user1, TeamVote(true)).unsafeRunSync()
+        val result2 = room.teamVote(user2, TeamVote(true)).unsafeRunSync()
+        val result3 = room.teamVote(user3, TeamVote(true)).unsafeRunSync()
+        val result4 = room.teamVote(user4, TeamVote(false)).unsafeRunSync()
+        val result5 = room.teamVote(user5, TeamVote(false)).unsafeRunSync()
+        val result6 = room.teamVote(user6, TeamVote(false)).unsafeRunSync()
+
+        result1 should be(StillVoting)
+        result2 should be(StillVoting)
+        result3 should be(StillVoting)
+        result4 should be(StillVoting)
+        result5 should be(StillVoting)
+        result6 should be(
+          FailedVote(
+            user2,
+            List(
+              PlayerTeamVote(user1, TeamVote(true)),
+              PlayerTeamVote(user2, TeamVote(true)),
+              PlayerTeamVote(user3, TeamVote(true)),
+              PlayerTeamVote(user4, TeamVote(false)),
+              PlayerTeamVote(user5, TeamVote(false)),
+              PlayerTeamVote(user6, TeamVote(false)),
+            )))
+
+        val proposal = room.proposeMission(user2, users.take(2)).attempt.unsafeRunSync()
+
+        proposal should be(Right(MissionProposal(1, user2, users.take(2))))
+      }
+    }
   }
 }

@@ -81,7 +81,6 @@ class IncomingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
   def missionProposalVoteJson(missionProposalVote: TeamAssignmentVote): Json =
     Json.obj(
       actionKey := "TeamAssignmentVote",
-      "nickname" := missionProposalVote.nickname,
       "vote" := missionProposalVote.vote.value
     )
 }

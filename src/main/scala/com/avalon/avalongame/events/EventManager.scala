@@ -6,7 +6,7 @@ import cats.effect.concurrent.Ref
 import cats.effect.implicits._
 import cats.temp.par._
 import com.avalon.avalongame.common._
-import com.avalon.avalongame.room.{AllReady, RoomIdGenerator, RoomManager}
+import com.avalon.avalongame.room._
 import fs2._
 import fs2.concurrent.Queue
 
@@ -105,7 +105,22 @@ object EventManager {
                   case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
                 }
 
-              case TeamAssignmentVote(_, _) => F.unit
+              case TeamAssignmentVote(vote) => F.unit
+//                (for {
+//                  ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
+//                  room          <- roomManager.get(ctx.roomId)
+//                  voteStatus    <- room.teamVote(ctx.nickname, vote)
+//                  _ <- voteStatus match {
+//                    case StillVoting => F.unit
+//                    case FailedVote(votes) =>
+//                  }
+//                  outgoingEvent =  TeamAssignmentOutgoing(proposal.players)
+//                  mapping       <- outgoingRef.get
+//                  outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+//                  _             <- outgoing.sendToAll(outgoingEvent)
+//                } yield ()).onError {
+//                  case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
+//                }
             }
           }.compile.drain
       }
