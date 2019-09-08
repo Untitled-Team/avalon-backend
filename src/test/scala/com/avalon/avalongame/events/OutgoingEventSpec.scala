@@ -129,7 +129,7 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
   def proposedPartyJson(proposedParty: ProposedParty): Json =
     Json.obj(
       "event" := "ProposedParty",
-      "players" := proposedParty.players
+      "proposedParty" := proposedParty.proposedParty
     )
 
   val partyApprovedJson: Json =
