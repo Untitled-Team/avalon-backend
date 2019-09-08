@@ -307,9 +307,9 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
 
         eventManager.interpret(
           userQueue,
-          Stream.eval(IO.pure(JoinGame(nickname1, roomId))) ++ Stream.eval(IO.pure(TeamAssignment(List(nickname1))))).unsafeRunSync()
+          Stream.eval(IO.pure(JoinGame(nickname1, roomId))) ++ Stream.eval(IO.pure(ProposeParty(List(nickname1))))).unsafeRunSync()
         sendToAllRef.get.unsafeRunSync() should be(
-          Some(TeamAssignmentOutgoing(List(nickname1))))
+          Some(ProposedParty(List(nickname1))))
       }
     }
   }

@@ -36,16 +36,16 @@ class IncomingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     Right(StartGame) should be(IncomingEventDecoder.decoder.decodeJson(startGameJson))
   }
 
-  test("make sure we can decode TeamAssignment event") {
-    forAll { teamAssignment: TeamAssignment =>
+  test("make sure we can decode ProposeParty event") {
+    forAll { teamAssignment: ProposeParty =>
       val json = missionLeaderProposalJson(teamAssignment)
 
       Right(teamAssignment) should be(IncomingEventDecoder.decoder.decodeJson(json))
     }
   }
 
-  test("make sure we can decode MissionProposalVote event") {
-    forAll { missionProposalVote: TeamAssignmentVote =>
+  test("make sure we can decode PartyApprovalVote event") {
+    forAll { missionProposalVote: PartyApprovalVote =>
       val json = missionProposalVoteJson(missionProposalVote)
 
       Right(missionProposalVote) should be(IncomingEventDecoder.decoder.decodeJson(json))
@@ -72,15 +72,15 @@ class IncomingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       actionKey := "StartGame",
     )
 
-  def missionLeaderProposalJson(missionLeaderProposal: TeamAssignment): Json =
+  def missionLeaderProposalJson(missionLeaderProposal: ProposeParty): Json =
     Json.obj(
-      actionKey := "TeamAssignment",
+      actionKey := "ProposeParty",
       "players" := missionLeaderProposal.players
     )
 
-  def missionProposalVoteJson(missionProposalVote: TeamAssignmentVote): Json =
+  def missionProposalVoteJson(missionProposalVote: PartyApprovalVote): Json =
     Json.obj(
-      actionKey := "TeamAssignmentVote",
+      actionKey := "PartyApprovalVote",
       "vote" := missionProposalVote.vote.value
     )
 }

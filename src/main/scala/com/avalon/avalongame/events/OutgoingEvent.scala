@@ -34,10 +34,12 @@ object TeamAssignmentPhase {
   implicit val encoder: Encoder[TeamAssignmentPhase] = deriveEncoder
 }
 
-case class TeamAssignmentOutgoing(players: List[Nickname]) extends OutgoingEvent
-object TeamAssignmentOutgoing {
-  implicit val encoder: Encoder[TeamAssignmentOutgoing] = deriveEncoder
+case class ProposedParty(players: List[Nickname]) extends OutgoingEvent
+object ProposedParty {
+  implicit val encoder: Encoder[ProposedParty] = deriveEncoder
 }
+
+case object PartyApproved extends OutgoingEvent
 
 object OutgoingEventEncoder {
   implicit val encoder: Encoder[OutgoingEvent] = Encoder.instance {
@@ -45,6 +47,7 @@ object OutgoingEventEncoder {
     case j@ChangeInLobby(_)             => ChangeInLobby.encoder.apply(j).deepMerge(Json.obj("action" := "ChangeInLobby"))
     case p@PlayerInfo(_, _)             => PlayerInfo.encoder.apply(p).deepMerge(Json.obj("action" := "PlayerInfo"))
     case g@TeamAssignmentPhase(_, _, _) => TeamAssignmentPhase.encoder.apply(g).deepMerge(Json.obj("action" := "TeamAssignmentPhase"))
-    case g@TeamAssignmentOutgoing(_)    => TeamAssignmentOutgoing.encoder.apply(g).deepMerge(Json.obj("action" := "TeamAssignment"))
+    case g@ProposedParty(_)             => ProposedParty.encoder.apply(g).deepMerge(Json.obj("action" := "ProposedParty"))
+    case PartyApproved                  => Json.obj("action" := "PartyApproved")
   }
 }

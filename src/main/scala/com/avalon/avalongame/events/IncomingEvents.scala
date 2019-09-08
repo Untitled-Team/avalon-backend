@@ -23,15 +23,15 @@ case object StartGame extends IncomingEvent
 
 case object PlayerReady extends IncomingEvent
 
-case class TeamAssignment(players: List[Nickname]) extends IncomingEvent
-object TeamAssignment {
-  implicit val decoder: Decoder[TeamAssignment] = deriveDecoder
+case class ProposeParty(players: List[Nickname]) extends IncomingEvent
+object ProposeParty {
+  implicit val decoder: Decoder[ProposeParty] = deriveDecoder
 }
 
-case class TeamAssignmentVote(vote: TeamVote) extends IncomingEvent
-object TeamAssignmentVote {
-  implicit val encoder: Encoder[TeamAssignmentVote] = deriveEncoder
-  implicit val decoder: Decoder[TeamAssignmentVote] = deriveDecoder
+case class PartyApprovalVote(vote: TeamVote) extends IncomingEvent
+object PartyApprovalVote {
+  implicit val encoder: Encoder[PartyApprovalVote] = deriveEncoder
+  implicit val decoder: Decoder[PartyApprovalVote] = deriveDecoder
 }
 
 object IncomingEventDecoder {
@@ -43,8 +43,8 @@ object IncomingEventDecoder {
         case "JoinGame"   => JoinGame.decoder.decodeJson(hcursor.value)
         case "StartGame"  => Right(StartGame)
         case "PlayerReady" => Right(PlayerReady)
-        case "TeamAssignment" => TeamAssignment.decoder.decodeJson(hcursor.value)
-        case "TeamAssignmentVote" => TeamAssignmentVote.decoder.decodeJson(hcursor.value)
+        case "ProposeParty" => ProposeParty.decoder.decodeJson(hcursor.value)
+        case "PartyApprovalVote" => PartyApprovalVote.decoder.decodeJson(hcursor.value)
       }
     } yield decoded
   }

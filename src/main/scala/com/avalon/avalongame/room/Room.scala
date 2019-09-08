@@ -23,10 +23,8 @@ trait Room[F[_]] {
 object Room {
 
   private[room] def buildPrivate[F[_]](randomAlg: RandomAlg[F],
-                                       roomId: RoomId,
-                                       gameRepresentation: Option[GameRepresentation],
-                                       players: List[Nickname])(implicit F: Concurrent[F]): F[Room[F]] =
-    MVar.of(InternalRoom(players, gameRepresentation)).map { mvar =>
+                                       roomId: RoomId, //this could maybe all be simplified with a Semaphore of size 1
+                                       mvar: MVar[F, InternalRoom])(implicit F: Concurrent[F]): Room[F] =
       new Room[F] {
         def state: F[Option[GameState]] = mvar.read.map(_.gameRepresentation.map(_.state))
 
@@ -62,21 +60,22 @@ object Room {
               repr  <- F.fromOption(room.gameRepresentation, GameNotStarted)
               state: PlayersReadingRole <- repr.state match {
                 case m@PlayersReadingRole(_) => F.pure(m)
-                case _ => F.raiseError(InvalidStateTransition(repr.state, "playerReady", nickname))
+                case _ => F.raiseError[PlayersReadingRole](InvalidStateTransition(repr.state, "playerReady", nickname))
               }
-              _ <- if (state.playersReady.contains(nickname)) F.raiseError(PlayerAlreadyReady(nickname)) else F.unit
+              _ <- if (state.playersReady.contains(nickname)) F.raiseError[Unit](PlayerAlreadyReady(nickname)) else F.unit
               updatedState = state.copy(state.playersReady :+ nickname)
-              enum: PlayerReadyEnum <-
-                if (updatedState.playersReady.size === room.players.size) {
-                  for {
+              enum <-
+                if (updatedState.playersReady.size === room.players.size)
+                  (for {
                     missionLeader <- randomAlg.randomGet(room.players)
                     updatedRepr   =  repr.copy(state = MissionProposing(1, missionLeader))
                     _             <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
-                  } yield AllReady(1, missionLeader, repr.missions)
-                }
+                  } yield AllReady(1, missionLeader, repr.missions)).widen[PlayerReadyEnum]
                 else {
                   val updatedRepr = repr.copy(state = updatedState)
-                  mvar.put(room.copy(gameRepresentation = Some(updatedRepr))).map(_ => NotReadyYet(room.players diff updatedState.playersReady))
+                  mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
+                    .map(_ => NotReadyYet(room.players diff updatedState.playersReady))
+                    .widen[PlayerReadyEnum]
                 }
             } yield enum)
               .guaranteeCase {
@@ -97,11 +96,14 @@ object Room {
               }
               _ <-
                 if (proposal.missionLeader === nickname) F.unit
-                else F.raiseError(UserNotMissionLeader(nickname))
+                else F.raiseError[Unit](UserNotMissionLeader(nickname))
+
               currentMission <- F.fromEither(Missions.fromInt(repr.missions, proposal.missionNumber))
+
               _ <-
                 if (currentMission.numberOfAdventurers === users.size) F.unit
-                else F.raiseError(InvalidUserCountForMission(users.size))
+                else F.raiseError[Unit](InvalidUserCountForMission(users.size))
+
               _ <- mvar.put {
                 room.copy(gameRepresentation = Some(repr.copy(state = MissionVoting(proposal.missionNumber, nickname, users, Nil))))
               }
@@ -125,29 +127,33 @@ object Room {
                   F.raiseError[MissionVoting](PlayerCantVoteMoreThanOnce(nickname))
                 else F.pure(proposal.copy(votes = proposal.votes :+ PlayerTeamVote(nickname, vote)))
 
-              result: TeamVoteEnum <-
-                if (updatedState.votes.size === room.players.size) //more precise check that all names appear
-                  if (updatedState.votes.filter(_.vote === TeamVote(false)).size >= updatedState.votes.filter(_.vote === TeamVote(true)).size) // fix
-                    randomAlg.randomGet(room.players.filter(_ =!= proposal.missionLeader)).map(FailedVote(_, updatedState.votes))
+              result <-
+                if (updatedState.votes.size === room.players.size)
+                  if (updatedState.votes.count(_.vote === TeamVote(false)) >= updatedState.votes.count(_.vote === TeamVote(true)))
+                    (for {
+                      updatedMissions <- F.fromEither(Missions.addFinishedTeamVote(repr.missions, proposal.missionNumber, updatedState.votes))
+                      newMissionLeader <- randomAlg.randomGet(room.players.filter(_ =!= proposal.missionLeader))
+                    } yield FailedVote(newMissionLeader, proposal.missionNumber, updatedState.votes, updatedMissions)).widen[TeamVoteEnum]
 
-                  else F.pure(SuccessfulVote(updatedState.votes))
+                  else F.pure(SuccessfulVote(updatedState.votes)).widen[TeamVoteEnum]
                 else
-                  F.pure(StillVoting)
+                  F.pure(StillVoting).widen[TeamVoteEnum]
 
-              updatedRepr: GameRepresentation <- result match {
+              updatedRepr <- result match {
                 case StillVoting => F.pure(repr.copy(state = updatedState))
-                case FailedVote(ml, votes) =>
-                  for {
-                    updatedMissions <- F.fromEither(Missions.addFailedVote(repr.missions, proposal.missionNumber, votes)) //save mission Leader as well
-//                    newMissionLeader <- randomAlg.randomGet(room.players.filter(_ =!= proposal.missionLeader))
-                  } yield repr.copy(
-                    state = MissionProposing(proposal.missionNumber, ml),//need to cycle mission leaders better
-                    missions = updatedMissions)
-                case SuccessfulVote(_) =>
-                  F.fromEither(Missions.addQuesters(repr.missions, proposal.missionNumber, proposal.users)).map { m =>
+                case FailedVote(ml, _, _, missions) =>
+                  F.pure {
                     repr.copy(
-                      state = QuestPhase(proposal.missionNumber, proposal.users),
-                      missions = m)
+                      state = MissionProposing(proposal.missionNumber, ml),//need to cycle mission leaders better
+                      missions = missions)
+                  }
+                case SuccessfulVote(votes) =>
+                  F.fromEither(Missions.addFinishedTeamVote(repr.missions, proposal.missionNumber, votes)).flatMap { m =>
+                    F.fromEither(Missions.addQuesters(m, proposal.missionNumber, proposal.users)).map { updatedMissions =>
+                      repr.copy(
+                        state = QuestPhase(proposal.missionNumber, proposal.users),
+                        missions = updatedMissions)
+                    }
                   }
               }
               _ <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
@@ -158,14 +164,13 @@ object Room {
               }
           }
       }
-    }
 
   //timeouts on get/reads?
   def build[F[_]](randomAlg: RandomAlg[F], roomId: RoomId)(implicit F: Concurrent[F]): F[Room[F]] =
-    buildPrivate(randomAlg, roomId, None, Nil)
+    MVar.of(InternalRoom(Nil, None)).map(buildPrivate(randomAlg, roomId, _))
 }
 
 sealed trait TeamVoteEnum
 case object StillVoting extends TeamVoteEnum
-case class FailedVote(newMissionLeader: Nickname, votes: List[PlayerTeamVote]) extends TeamVoteEnum
+case class FailedVote(newMissionLeader: Nickname, missionNumber: Int, votes: List[PlayerTeamVote], missions: Missions) extends TeamVoteEnum
 case class SuccessfulVote(votes: List[PlayerTeamVote]) extends TeamVoteEnum
