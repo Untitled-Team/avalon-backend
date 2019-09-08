@@ -70,6 +70,10 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     }
   }
 
+  test("make sure we can encode PartyApproved event") {
+    partyApprovedJson should be(OutgoingEventEncoder.encoder(PartyApproved))
+  }
+
   def gameCreatedJson(moveToLobby: MoveToLobby): Json =
     Json.obj(
       "action" := "MoveToLobby",
@@ -103,4 +107,7 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "action" := "ProposedParty",
       "players" := proposedParty.players
     )
+
+  val partyApprovedJson: Json =
+    Json.obj("action" := "PartyApproved")
 }

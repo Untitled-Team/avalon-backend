@@ -65,3 +65,10 @@ object TeamVote {
   implicit val encoder: Encoder[TeamVote] = deriveUnwrappedEncoder
   implicit val eq: Eq[TeamVote] = Eq.fromUniversalEquals
 }
+
+case class QuestVote(value: Boolean) extends AnyVal
+object QuestVote {
+  implicit val decoder: Decoder[QuestVote] = deriveUnwrappedDecoder
+  implicit val encoder: Encoder[QuestVote] = deriveUnwrappedEncoder
+  implicit val eq: Eq[QuestVote] = Eq.fromUniversalEquals
+}

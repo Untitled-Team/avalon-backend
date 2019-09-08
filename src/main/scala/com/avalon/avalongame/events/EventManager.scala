@@ -103,10 +103,10 @@ object EventManager {
                     outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
                     _             <- outgoing.sendToAll(outgoingEvent)
                   } yield ()).onError {
-                    case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
+                    case t => Sync[F].delay(println(s"We encountered an error with ProposeParty for ???,  ${t.getStackTrace}"))
                   }
 
-                case PartyApprovalVote(vote) => //F.unit
+                case PartyApprovalVote(vote) =>
                   (for {
                     ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
                     room          <- roomManager.get(ctx.roomId)
@@ -117,14 +117,13 @@ object EventManager {
                       case StillVoting => F.unit
                       case FailedVote(missionLeader, missionNumber, _, missions) =>
                         outgoing.sendToAll(TeamAssignmentPhase(missionNumber, missionLeader, missions))
-                      case SuccessfulVote(_) => F.unit //outgoing.sendToAll(Party)
+                      case SuccessfulVote(_) => outgoing.sendToAll(PartyApproved)
                     }
-//                    outgoingEvent =  TeamAssignmentOutgoing(proposal.players)
-
-//                    _             <- outgoing.sendToAll(outgoingEvent)
                   } yield ()).onError {
-                    case t => Sync[F].delay(println(s"We encountered an error with mission leader proposal for ???,  ${t.getStackTrace}"))
+                    case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getStackTrace}"))
                   }
+
+                case QuestVoteEvent(_) => F.unit
               }}.handleErrorWith(t => F.delay(println(t)))
             }
           }.compile.drain
