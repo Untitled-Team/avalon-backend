@@ -194,6 +194,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = ???
               override def proposeMission(nickname: Nickname, users: List[Nickname]): IO[MissionProposal] = ???
               def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
+              def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
             }
           }
         }
@@ -241,6 +242,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = IO.pure(AllReady(1, Nickname("Blah"), missions))
               override def proposeMission(nickname: Nickname, users: List[Nickname]): IO[MissionProposal] = ???
               def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
+              def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
             }
           }
         }
@@ -291,6 +293,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               override def proposeMission(nickname: Nickname, players: List[Nickname]): IO[MissionProposal] =
                 IO.pure(MissionProposal(1, nickname1, players))
               def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
+              def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
             }
           }
         }
@@ -341,6 +344,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               override def proposeMission(nickname: Nickname, players: List[Nickname]): IO[MissionProposal] = ???
               def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] =
                 IO.pure(FailedVote(nickname1, 1, Nil, missions))
+              def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
             }
           }
         }

@@ -375,7 +375,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val proposal = room.teamVote(user1, TeamVote(false)).unsafeRunSync()
 
-        proposal should be(StillVoting)
+        proposal should be(TeamPhaseStillVoting)
       }
     }
 
@@ -419,10 +419,10 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, votes)).unsafeRunSync()
 
-        result1 should be(StillVoting)
-        result2 should be(StillVoting)
-        result3 should be(StillVoting)
-        result4 should be(StillVoting)
+        result1 should be(TeamPhaseStillVoting)
+        result2 should be(TeamPhaseStillVoting)
+        result3 should be(TeamPhaseStillVoting)
+        result4 should be(TeamPhaseStillVoting)
         result5 should be(FailedVote(user2, 1, votes, missionsAfterVotes))
       }
     }
@@ -464,10 +464,10 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           PlayerTeamVote(user4, TeamVote(false)),
           PlayerTeamVote(user5, TeamVote(false)))
 
-        result1 should be(StillVoting)
-        result2 should be(StillVoting)
-        result3 should be(StillVoting)
-        result4 should be(StillVoting)
+        result1 should be(TeamPhaseStillVoting)
+        result2 should be(TeamPhaseStillVoting)
+        result3 should be(TeamPhaseStillVoting)
+        result4 should be(TeamPhaseStillVoting)
         result5 should be(SuccessfulVote(votes))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
@@ -518,11 +518,11 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, votes)).unsafeRunSync()
 
-        result1 should be(StillVoting)
-        result2 should be(StillVoting)
-        result3 should be(StillVoting)
-        result4 should be(StillVoting)
-        result5 should be(StillVoting)
+        result1 should be(TeamPhaseStillVoting)
+        result2 should be(TeamPhaseStillVoting)
+        result3 should be(TeamPhaseStillVoting)
+        result4 should be(TeamPhaseStillVoting)
+        result5 should be(TeamPhaseStillVoting)
         result6 should be(FailedVote(user2, 1, votes, missionsAfterVotes))
       }
     }
@@ -569,16 +569,227 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, votes)).unsafeRunSync()
 
-        result1 should be(StillVoting)
-        result2 should be(StillVoting)
-        result3 should be(StillVoting)
-        result4 should be(StillVoting)
-        result5 should be(StillVoting)
+        result1 should be(TeamPhaseStillVoting)
+        result2 should be(TeamPhaseStillVoting)
+        result3 should be(TeamPhaseStillVoting)
+        result4 should be(TeamPhaseStillVoting)
+        result5 should be(TeamPhaseStillVoting)
         result6 should be(FailedVote(user2, 1, votes, missionsAfterVotes))
 
         val proposal = room.proposeMission(user2, users.take(2)).attempt.unsafeRunSync()
 
         proposal should be(Right(MissionProposal(1, user2, users.take(2))))
+      }
+    }
+  }
+
+  "quest vote" should {
+    //good person can't cast a false vote
+
+    "fail if someone who isn't a quester tries to vote" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          QuestPhase(1, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questVote(user5, QuestVote(true)).attempt.unsafeRunSync() should be(Left(PlayerNotPartOfQuest(user5)))
+      }
+    }
+
+    "fail if someone who has already voted tries to vote again" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          QuestPhase(1, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questVote(user1, QuestVote(true)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room.questVote(user1, QuestVote(true)).attempt.unsafeRunSync() should be(Left(PlayerCantVoteMoreThanOnce(user1)))
+      }
+    }
+
+    "Move to next mission if no GameOver condition is met" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          QuestPhase(1, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questVote(user1, QuestVote(true)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room.questVote(user2, QuestVote(false)).unsafeRunSync() should be(FinishedVote(List(QuestVote(true), QuestVote(false))))
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+        val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 1)).unsafeRunSync()
+        completedMission.pass should be(Some(QuestVote(false)))
+
+        repr.state should be(NextMission(user1))
+      }
+    }
+
+    "Good guys cannot fail a mission even if they try" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          QuestPhase(1, user1, List(user3, user4), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questVote(user3, QuestVote(false)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room.questVote(user4, QuestVote(false)).unsafeRunSync() should be(FinishedVote(List(QuestVote(true), QuestVote(true))))
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+        val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 1)).unsafeRunSync()
+        completedMission.pass should be(Some(QuestVote(true)))
+
+        repr.state should be(NextMission(user1))
+      }
+    }
+
+    "set Room in BadGuysWinState when third failed mission happens" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = {
+          val default = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+          val updateMissions1 = IO.fromEither(Missions.completeMission(default, 1, QuestVote(false))).unsafeRunSync()
+          IO.fromEither(Missions.completeMission(updateMissions1, 2, QuestVote(false))).unsafeRunSync()
+        }
+
+        val gr = GameRepresentation(
+          QuestPhase(3, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questVote(user1, QuestVote(false)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room.questVote(user2, QuestVote(false)).unsafeRunSync() should be(FinishedVote(List(QuestVote(false), QuestVote(false))))
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+        val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 3)).unsafeRunSync()
+        completedMission.pass should be(Some(QuestVote(false)))
+
+        repr.state should be(BadGuysWin)
+      }
+    }
+
+    "set Room in AssassinNeedsToVote when third failed mission happens" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = {
+          val default = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+          val updateMissions1 = IO.fromEither(Missions.completeMission(default, 1, QuestVote(true))).unsafeRunSync()
+          IO.fromEither(Missions.completeMission(updateMissions1, 2, QuestVote(true))).unsafeRunSync()
+        }
+
+        val gr = GameRepresentation(
+          QuestPhase(3, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questVote(user1, QuestVote(true)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room.questVote(user2, QuestVote(true)).unsafeRunSync() should be(FinishedVote(List(QuestVote(true), QuestVote(true))))
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+        val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 3)).unsafeRunSync()
+        completedMission.pass should be(Some(QuestVote(true)))
+
+        repr.state should be(AssassinNeedsToVote)
       }
     }
   }

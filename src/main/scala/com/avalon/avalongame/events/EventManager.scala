@@ -114,7 +114,7 @@ object EventManager {
                     mapping       <- outgoingRef.get
                     outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
                     _ <- voteStatus match {
-                      case StillVoting => F.unit
+                      case TeamPhaseStillVoting => F.unit
                       case FailedVote(missionLeader, missionNumber, _, missions) =>
                         outgoing.sendToAll(TeamAssignmentPhase(missionNumber, missionLeader, missions))
                       case SuccessfulVote(_) => outgoing.sendToAll(PartyApproved)

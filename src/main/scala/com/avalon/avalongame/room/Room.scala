@@ -18,6 +18,7 @@ trait Room[F[_]] {
   def playerReady(nickname: Nickname): F[PlayerReadyEnum]
   def proposeMission(nickname: Nickname, users: List[Nickname]): F[MissionProposal]
   def teamVote(nickname: Nickname, vote: TeamVote): F[TeamVoteEnum]
+  def questVote(nickname: Nickname, vote: QuestVote): F[QuestVotingEnum]
 }
 
 object Room {
@@ -98,7 +99,7 @@ object Room {
                 if (proposal.missionLeader === nickname) F.unit
                 else F.raiseError[Unit](UserNotMissionLeader(nickname))
 
-              currentMission <- F.fromEither(Missions.fromInt(repr.missions, proposal.missionNumber))
+              currentMission <- F.fromEither(Missions.fromInt(repr.missions, proposal.missionNumber)) //function for this?
 
               _ <-
                 if (currentMission.numberOfAdventurers === users.size) F.unit
@@ -137,10 +138,10 @@ object Room {
 
                   else F.pure(SuccessfulVote(updatedState.votes)).widen[TeamVoteEnum]
                 else
-                  F.pure(StillVoting).widen[TeamVoteEnum]
+                  F.pure(TeamPhaseStillVoting).widen[TeamVoteEnum]
 
               updatedRepr <- result match {
-                case StillVoting => F.pure(repr.copy(state = updatedState))
+                case TeamPhaseStillVoting => F.pure(repr.copy(state = updatedState))
                 case FailedVote(ml, _, _, missions) =>
                   F.pure {
                     repr.copy(
@@ -151,11 +152,59 @@ object Room {
                   F.fromEither(Missions.addFinishedTeamVote(repr.missions, proposal.missionNumber, votes)).flatMap { m =>
                     F.fromEither(Missions.addQuesters(m, proposal.missionNumber, proposal.users)).map { updatedMissions =>
                       repr.copy(
-                        state = QuestPhase(proposal.missionNumber, proposal.users),
+                        state = QuestPhase(proposal.missionNumber, proposal.missionLeader, proposal.users, Nil),
                         missions = updatedMissions)
                     }
                   }
               }
+              _ <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
+            } yield result)
+              .guaranteeCase {
+                case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
+                case ExitCase.Completed => F.unit
+              }
+          }
+
+        def questVote(nickname: Nickname, vote: QuestVote): F[QuestVotingEnum] =
+          mvar.take.flatMap { room =>
+            (for {
+              repr <- F.fromOption(room.gameRepresentation, GameNotStarted)
+              questPhase <- repr.state match {
+                case m@QuestPhase(_, _, _, _) => F.pure(m)
+                case _ => F.raiseError[QuestPhase](InvalidStateTransition(repr.state, "questVote", nickname))
+              }
+
+              _ <- if (questPhase.questers.contains(nickname)) F.unit else F.raiseError[Unit](PlayerNotPartOfQuest(nickname))
+
+              //good player cannot choose false
+              validPlayerVote = if (repr.goodGuys.map(_.nickname).contains(nickname)) QuestVote(true) else vote
+
+              updatedState <-
+                if (questPhase.votes.map(_.nickname).contains(nickname))
+                  F.raiseError[QuestPhase](PlayerCantVoteMoreThanOnce(nickname))
+                else F.pure(questPhase.copy(votes = questPhase.votes :+ PlayerQuestVote(nickname, validPlayerVote)))
+
+              currentNumberOfAdventurers <- F.fromEither(Missions.fromInt(repr.missions, questPhase.missionNumber)).map(_.numberOfAdventurers)
+
+              currentMissionPassStatus = !updatedState.votes.map(_.vote).contains(QuestVote(false))
+              updatedRepr <-
+                if (updatedState.votes.size === currentNumberOfAdventurers)
+                  F.fromEither[Missions](
+                    Missions.completeMission(repr.missions, questPhase.missionNumber, QuestVote(currentMissionPassStatus)))
+                    .map[GameRepresentation] { updatedMissions =>
+                      if (Missions.failedQuests(updatedMissions) === 3) repr.copy(state = BadGuysWin, missions = updatedMissions)
+                      else if (Missions.successfulQuests(updatedMissions) === 3) repr.copy(state = AssassinNeedsToVote, missions = updatedMissions)
+                      else repr.copy(state = NextMission(questPhase.missionLeader), missions = updatedMissions)
+                    }
+                else
+                  F.pure(repr.copy(state = updatedState))
+
+
+              result <-
+                if (updatedState.votes.size === currentNumberOfAdventurers)
+                  F.pure(FinishedVote(updatedState.votes.map(_.vote))).widen[QuestVotingEnum]
+                else F.pure(QuestPhaseStillVoting).widen[QuestVotingEnum]
+
               _ <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
             } yield result)
               .guaranteeCase {
@@ -171,6 +220,16 @@ object Room {
 }
 
 sealed trait TeamVoteEnum
-case object StillVoting extends TeamVoteEnum
+case object TeamPhaseStillVoting extends TeamVoteEnum
 case class FailedVote(newMissionLeader: Nickname, missionNumber: Int, votes: List[PlayerTeamVote], missions: Missions) extends TeamVoteEnum
 case class SuccessfulVote(votes: List[PlayerTeamVote]) extends TeamVoteEnum
+
+
+sealed trait QuestVotingEnum
+case object QuestPhaseStillVoting extends QuestVotingEnum
+case class FinishedVote(votes: List[QuestVote]) extends QuestVotingEnum
+
+//sealed trait QuestVoteEnum
+//case class NextMission(previousMissionLeader: Nickname) extends QuestVoteEnum
+//case object AssassinNeedsToVote extends QuestVoteEnum
+//case object BadGuysWin extends QuestVoteEnum

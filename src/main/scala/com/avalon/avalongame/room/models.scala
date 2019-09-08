@@ -1,6 +1,7 @@
 package com.avalon.avalongame.room
 
 import cats.data.NonEmptyList
+import cats.implicits._
 import com.avalon.avalongame.common._
 import com.avalon.avalongame.events.PartyApprovalVote
 
@@ -10,6 +11,7 @@ import scala.util.control.NoStackTrace
 // Errors
 //==================
 
+case class PlayerNotPartOfQuest(nickname: Nickname) extends RuntimeException with NoStackTrace
 case class PlayerCantVoteMoreThanOnce(nickname: Nickname) extends RuntimeException with NoStackTrace
 case object GameHasStarted extends RuntimeException with NoStackTrace
 case class NicknameAlreadyInUse(nickname: Nickname) extends RuntimeException with NoStackTrace
@@ -29,18 +31,21 @@ case class PlayerAlreadyReady(nickname: Nickname) extends RuntimeException with 
 case class MissionProposal(missionNumber: Int, missionLeader: Nickname, players: List[Nickname])
 case class FinishedTeamVote(votes: List[PlayerTeamVote])
 
-sealed abstract case class Mission(players: Option[List[Nickname]], numberOfAdventurers: Int, votes: List[FinishedTeamVote])
+sealed abstract case class Mission(players: Option[List[Nickname]], numberOfAdventurers: Int, votes: List[FinishedTeamVote], pass: Option[QuestVote])
 
 object Mission {
   def make(players: Option[List[Nickname]], numberOfAdventurers: Int): Mission =
-    new Mission(players, numberOfAdventurers, Nil){}
+    new Mission(players, numberOfAdventurers, Nil, None){}
 
   def addFinishedTeamVote(mission: Mission, votes: List[PlayerTeamVote]): Mission =
-    new Mission(mission.players, mission.numberOfAdventurers, mission.votes :+ FinishedTeamVote(votes)){}
+    new Mission(mission.players, mission.numberOfAdventurers, mission.votes :+ FinishedTeamVote(votes), mission.pass){}
 
   //maybe fail if we try to update this when the players have already been set??????
   def addQuesters(mission: Mission, players: List[Nickname]): Mission =
-    new Mission(Some(players), mission.numberOfAdventurers, mission.votes){}
+    new Mission(Some(players), mission.numberOfAdventurers, mission.votes, mission.pass){}
+
+  def completeQuest(mission: Mission, pass: QuestVote): Mission = //maybe fail if one is already set???
+    new Mission(mission.players, mission.numberOfAdventurers, mission.votes, Some(pass)){}
 }
 
 sealed abstract case class Missions(one: Mission,
@@ -117,6 +122,26 @@ object Missions {
       case 5  => Right(new Missions(missions.one, missions.two, missions.three, missions.four, Mission.addQuesters(missions.five, players)){})
       case _  => Left(InvalidMissionNumber(missionNumber))
     }
+
+  def completeMission(missions: Missions, missionNumber: Int, pass: QuestVote): Either[Throwable, Missions] =
+    missionNumber match {
+      case 1  => Right(new Missions(Mission.completeQuest(missions.one, pass), missions.two, missions.three, missions.four, missions.five){})
+      case 2  => Right(new Missions(missions.one, Mission.completeQuest(missions.two, pass), missions.three, missions.four, missions.five){})
+      case 3  => Right(new Missions(missions.one, missions.two, Mission.completeQuest(missions.three, pass), missions.four, missions.five){})
+      case 4  => Right(new Missions(missions.one, missions.two, missions.three, Mission.completeQuest(missions.four, pass), missions.five){})
+      case 5  => Right(new Missions(missions.one, missions.two, missions.three, missions.four, Mission.completeQuest(missions.five, pass)){})
+      case _  => Left(InvalidMissionNumber(missionNumber))
+    }
+
+  def failedQuests(missions: Missions): Int =
+    List(missions.one, missions.two, missions.three, missions.four, missions.five)
+      .flatMap(_.pass)
+      .count(_ === QuestVote(false))
+
+  def successfulQuests(missions: Missions): Int =
+    List(missions.one, missions.two, missions.three, missions.four, missions.five)
+      .flatMap(_.pass)
+      .count(_ === QuestVote(true))
 }
 
 sealed trait Role
@@ -142,7 +167,15 @@ case class PlayersReadingRole(playersReady: List[Nickname]) extends GameState
 case class MissionProposing(missionNumber: Int, missionLeader: Nickname) extends GameState
 case class MissionVoting(missionNumber: Int, missionLeader: Nickname, users: List[Nickname], votes: List[PlayerTeamVote]) extends GameState
 case class MissionProposed(voters: NonEmptyList[User]) extends GameState
-case class QuestPhase(missionNumber: Int, questers: List[Nickname]) extends GameState
+case class QuestPhase(missionNumber: Int, missionLeader: Nickname, questers: List[Nickname], votes: List[PlayerQuestVote]) extends GameState
+
+
+//this is the state where we're waiting for all clients to acknowledge the quest results before we tell them the new state of the game
+sealed trait QuestPhaseEnum extends GameState
+case class NextMission(previousMissionLeader: Nickname) extends QuestPhaseEnum
+case object AssassinNeedsToVote extends QuestPhaseEnum
+case object BadGuysWin extends QuestPhaseEnum
+
 
 case class AllPlayerRoles(goodGuys: List[GoodPlayerRole], badGuys: List[BadPlayerRole])
 
@@ -155,3 +188,4 @@ case class GameRepresentation(state: GameState,
 case class InternalRoom(players: List[Nickname], gameRepresentation: Option[GameRepresentation])
 
 case class PlayerTeamVote(nickname: Nickname, vote: TeamVote)
+case class PlayerQuestVote(nickname: Nickname, vote: QuestVote)
