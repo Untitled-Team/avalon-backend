@@ -34,7 +34,7 @@ object TeamAssignmentPhase {
   implicit val encoder: Encoder[TeamAssignmentPhase] = deriveEncoder
 }
 
-case class ProposedParty(players: List[Nickname]) extends OutgoingEvent
+case class ProposedParty(proposedParty: List[Nickname]) extends OutgoingEvent
 object ProposedParty {
   implicit val encoder: Encoder[ProposedParty] = deriveEncoder
 }
