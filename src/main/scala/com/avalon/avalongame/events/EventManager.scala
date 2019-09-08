@@ -178,9 +178,7 @@ object EventManager {
                     _ <- outgoing.sendToAll(outgoingEvent)
                   } yield ()).onError {
                     case t => Sync[F].delay {
-                      val sw = new StringWriter
-                      val str = t.printStackTrace(new PrintWriter(sw))
-                      println(s"We encountered an error with IncomingAssassinVote for ???,  ${sw.toString}")
+                      println(s"We encountered an error with IncomingAssassinVote for ???,  $t")
                     }
                   }
               }}.handleErrorWith(t => F.delay(println(t)))
