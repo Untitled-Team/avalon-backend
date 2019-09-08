@@ -20,6 +20,7 @@ trait Room[F[_]] {
   def teamVote(nickname: Nickname, vote: TeamVote): F[TeamVoteEnum]
   def questVote(nickname: Nickname, vote: QuestVote): F[QuestVotingEnum]
   def questResultsSeen(nickname: Nickname): F[AfterQuest]
+  def assassinVote(assassin: Nickname, guess: Nickname): F[GameOver]
 }
 
 object Room {
@@ -240,17 +241,53 @@ object Room {
                       } yield
                         (GameContinues(nextMissionLeader, currentMission.number, repr.missions),
                           repr.copy(state = MissionProposing(currentMission.number, nextMissionLeader)))).widen[(AfterQuest, GameRepresentation)]
-                    case AssassinNeedsToVote => F.pure {
-                      (AssassinVote(repr.goodGuys), repr.copy(state = AssassinVoteState))
-                    }.widen[(AfterQuest, GameRepresentation)]
-                    case BadGuysWin => F.pure {
-                      (BadGuyVictory, repr.copy(BadSideWins))
-                    }.widen[(AfterQuest, GameRepresentation)]
+                    case AssassinNeedsToVote => //better type check here???
+                      F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow).map { assassin =>
+                        (AssassinVote(assassin.nickname, repr.goodGuys), repr.copy(state = AssassinVoteState))
+                      }.widen[(AfterQuest, GameRepresentation)]
+                    case BadGuysWin =>
+                      (for {
+                        assassin <- F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow)
+                        merlin   <- F.fromOption(repr.goodGuys.find(_.role == Merlin), NoPlayerIsMerlinSomehow)
+                      } yield
+                        (BadGuyVictory(assassin, None, merlin, repr.goodGuys, repr.badGuys, BadGuys), repr.copy(BadSideWins)))
+                        .widen[(AfterQuest, GameRepresentation)]
                   }
                 else
                   F.pure((StillViewingQuestResults, repr.copy(state = updatedState))).widen[(AfterQuest, GameRepresentation)]
 
               (result, updatedRepr) = resultAndUpdatedRepr
+
+              _ <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
+            } yield result)
+              .guaranteeCase {
+                case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
+                case ExitCase.Completed => F.unit
+              }
+          }
+
+        def assassinVote(assassin: Nickname, guess: Nickname): F[GameOver] =
+          mvar.take.flatMap { room =>
+            (for {
+              repr <- F.fromOption(room.gameRepresentation, GameNotStarted)
+              _ <- repr.state match {
+                case AssassinVoteState => F.unit
+                case _ => F.raiseError[Unit](InvalidStateTransition(repr.state, "assassinVote", assassin))
+              }
+
+              actualAssassin <- F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow)
+              merlin <- F.fromOption(repr.goodGuys.find(_.role == Merlin), NoPlayerIsMerlinSomehow)
+
+              _ <- if (assassin === actualAssassin.nickname) F.unit else F.raiseError[Unit](PlayerIsNotTheAssassin(assassin))
+
+              winningSide = if (merlin.nickname === guess) BadGuys else GoodGuys
+
+              updatedRepr = winningSide match {
+                case BadGuys => repr.copy(state = BadSideWins)
+                case GoodGuys => repr.copy(state = GoodSideWins)
+              }
+
+              result = GameOver(actualAssassin, Some(guess), merlin, repr.goodGuys, repr.badGuys, winningSide)
 
               _ <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
             } yield result)
@@ -279,6 +316,11 @@ case class FinishedVote(votes: List[QuestVote]) extends QuestVotingEnum
 
 sealed trait AfterQuest
 case object StillViewingQuestResults extends AfterQuest
-case class AssassinVote(goodGuys: List[GoodPlayerRole]) extends AfterQuest
-case object BadGuyVictory extends AfterQuest
+case class AssassinVote(assassin: Nickname, goodGuys: List[GoodPlayerRole]) extends AfterQuest
+case class BadGuyVictory(assassin: BadPlayerRole,
+                         assassinGuess: Option[Nickname],
+                         merlin: GoodPlayerRole,
+                         goodGuys: List[GoodPlayerRole],
+                         badGuys: List[BadPlayerRole],
+                         winningTeam: Side) extends AfterQuest
 case class GameContinues(missionLeader: Nickname, missionNumber: Int, missions: Missions) extends AfterQuest

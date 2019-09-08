@@ -138,6 +138,45 @@ object EventManager {
                   } yield ()).onError {
                     case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getStackTrace}"))
                   }
+
+                case QuestVotesDisplayed => F.unit
+                  (for {
+                    ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
+                    room          <- roomManager.get(ctx.roomId)
+                    resultsStatus <- room.questResultsSeen(ctx.nickname)
+                    mapping       <- outgoingRef.get
+                    outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+                    _ <- resultsStatus match {
+                      case StillViewingQuestResults => F.unit
+                      case AssassinVote(assassin, goodGuys) =>
+                        outgoing.sendToAll(AssassinVoteOutgoingEvent(assassin, goodGuys.map(_.nickname)))
+                      case BadGuyVictory(assassin, _, merlin, goodGuys, badGuys, winningTeam) =>
+                        outgoing.sendToAll(GameOverOutgoingEvent(assassin.nickname, None, merlin.nickname, goodGuys, badGuys, winningTeam))
+                      case GameContinues(missionLeader, missionNumber, missions) =>
+                        outgoing.sendToAll(TeamAssignmentPhase(missionNumber, missionLeader, missions))
+                    }
+                  } yield ()).onError {
+                    case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getStackTrace}"))
+                  }
+
+                case IncomingAssassinVote(guess) =>
+                  (for {
+                    ctx      <- context.get.flatMap(c => F.fromOption(c, NoContext))
+                    room     <- roomManager.get(ctx.roomId)
+                    gameOver <- room.assassinVote(ctx.nickname, guess)
+                    mapping  <- outgoingRef.get
+                    outgoing <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+                    outgoingEvent = GameOverOutgoingEvent(
+                      gameOver.assassin.nickname,
+                      gameOver.assassinGuess,
+                      gameOver.merlin.nickname,
+                      gameOver.goodGuys,
+                      gameOver.badGuys,
+                      gameOver.winningTeam)
+                    _ <- outgoing.sendToAll(outgoingEvent)
+                  } yield ()).onError {
+                    case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getStackTrace}"))
+                  }
               }}.handleErrorWith(t => F.delay(println(t)))
             }
           }.compile.drain

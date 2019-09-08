@@ -915,7 +915,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         room.questResultsSeen(user2).unsafeRunSync() should be(StillViewingQuestResults)
         room.questResultsSeen(user3).unsafeRunSync() should be(StillViewingQuestResults)
         room.questResultsSeen(user4).unsafeRunSync() should be(StillViewingQuestResults)
-        room.questResultsSeen(user5).unsafeRunSync() should be(AssassinVote(goodPlayerRoles))
+        room.questResultsSeen(user5).unsafeRunSync() should be(AssassinVote(user1, goodPlayerRoles))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
 
@@ -937,11 +937,12 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
         val goodPlayerRoles = List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
+        val badPlayerRoles = List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy))
 
         val gr = GameRepresentation(
           QuestResultsViewing(BadGuysWin, Nil),
           missions,
-          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          badPlayerRoles,
           goodPlayerRoles,
           users)
 
@@ -953,7 +954,8 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         room.questResultsSeen(user2).unsafeRunSync() should be(StillViewingQuestResults)
         room.questResultsSeen(user3).unsafeRunSync() should be(StillViewingQuestResults)
         room.questResultsSeen(user4).unsafeRunSync() should be(StillViewingQuestResults)
-        room.questResultsSeen(user5).unsafeRunSync() should be(BadGuyVictory)
+        room.questResultsSeen(user5).unsafeRunSync() should be(
+          BadGuyVictory(BadPlayerRole(user1, Assassin), None, GoodPlayerRole(user3, Merlin), goodPlayerRoles, badPlayerRoles, BadGuys))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
 
@@ -1041,6 +1043,129 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
           repr.state should be(MissionProposing(3, user2))
         }
+      }
+    }
+  }
+
+  "assassinVote" should {
+    "fail if the person voting isn't the assassin" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = {
+          val default = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+          val updateMissions1 = IO.fromEither(Missions.completeMission(default, 1, QuestVote(true))).unsafeRunSync()
+          IO.fromEither(Missions.completeMission(updateMissions1, 2, QuestVote(true))).unsafeRunSync()
+        }
+
+        val goodPlayerRoles = List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
+
+        val gr = GameRepresentation(
+          AssassinVoteState,
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          goodPlayerRoles,
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.assassinVote(user5, user3).attempt.unsafeRunSync() should be(Left(PlayerIsNotTheAssassin(user5)))
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+
+        repr.state should be(AssassinVoteState)
+      }
+    }
+
+    "return GameOver with GoodGuys winning if the guess was incorrect - state GoodSideWins" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = {
+          val default = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+          val updateMissions1 = IO.fromEither(Missions.completeMission(default, 1, QuestVote(true))).unsafeRunSync()
+          IO.fromEither(Missions.completeMission(updateMissions1, 2, QuestVote(true))).unsafeRunSync()
+        }
+
+        val goodPlayerRoles = List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
+        val badPlayerRoles = List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy))
+
+        val gr = GameRepresentation(
+          AssassinVoteState,
+          missions,
+          badPlayerRoles,
+          goodPlayerRoles,
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.assassinVote(user1, user4).unsafeRunSync() should be(
+          GameOver(BadPlayerRole(user1, Assassin), Some(user4), GoodPlayerRole(user3, Merlin), goodPlayerRoles, badPlayerRoles, GoodGuys))
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+
+        repr.state should be(GoodSideWins)
+      }
+    }
+
+    "return true if the guess was incorrect - BadSideWins state" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = {
+          val default = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+          val updateMissions1 = IO.fromEither(Missions.completeMission(default, 1, QuestVote(true))).unsafeRunSync()
+          IO.fromEither(Missions.completeMission(updateMissions1, 2, QuestVote(true))).unsafeRunSync()
+        }
+
+        val goodPlayerRoles = List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
+        val badPlayerRoles = List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy))
+
+        val gr = GameRepresentation(
+          AssassinVoteState,
+          missions,
+          badPlayerRoles,
+          goodPlayerRoles,
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.assassinVote(user1, user3).unsafeRunSync() should be(
+          GameOver(BadPlayerRole(user1, Assassin), Some(user3), GoodPlayerRole(user3, Merlin), goodPlayerRoles, badPlayerRoles, BadGuys))
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+
+        repr.state should be(BadSideWins)
       }
     }
   }

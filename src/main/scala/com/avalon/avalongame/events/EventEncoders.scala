@@ -51,4 +51,9 @@ object EventEncoders {
       "character" := m.character,
       "badGuys" := m.badGuys)
   }
+
+  implicit val sideEncoder: Encoder[Side] = Encoder.instance {
+    case BadGuys => Encoder.encodeString.apply("BadGuys")
+    case GoodGuys => Encoder.encodeString.apply("GoodGuys")
+  }
 }

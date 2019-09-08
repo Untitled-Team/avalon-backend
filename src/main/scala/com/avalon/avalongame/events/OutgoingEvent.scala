@@ -53,6 +53,28 @@ object AssassinVoteOutgoingEvent {
   }
 }
 
+case class GameOverOutgoingEvent(assassin: Nickname,
+                                 assassinGuess: Option[Nickname],
+                                 merlin: Nickname,
+                                 goodGuys: List[GoodPlayerRole],
+                                 badGuys: List[BadPlayerRole],
+                                 winningTeam: Side) extends OutgoingEvent
+
+object GameOverOutgoingEvent {
+  implicit val encoder: Encoder[GameOverOutgoingEvent] = Encoder.instance { gameOver =>
+    Json.obj("gameOverData" :=
+      Json.obj(
+        "assassin" := gameOver.assassin,
+        "assassinGuess" :=  gameOver.assassinGuess,
+        "merlin" :=  gameOver.merlin,
+        "goodGuys" := gameOver.goodGuys.map(_.nickname),
+        "badGuys" := gameOver.badGuys.map(_.nickname),
+        "winningTeam" :=  gameOver.winningTeam
+      )
+    )
+  }
+}
+
 object OutgoingEventEncoder {
   implicit val encoder: Encoder[OutgoingEvent] = Encoder.instance {
     case g@MoveToLobby(_, _)               => MoveToLobby.encoder.apply(g).deepMerge(Json.obj("action" := "MoveToLobby"))
@@ -63,5 +85,6 @@ object OutgoingEventEncoder {
     case PartyApproved                     => Json.obj("action" := "PartyApproved")
     case p@PassFailVoteResults(_, _)       => PassFailVoteResults.encoder.apply(p).deepMerge(Json.obj("action" := "PassFailVoteResults"))
     case a@AssassinVoteOutgoingEvent(_, _) => AssassinVoteOutgoingEvent.encoder.apply(a).deepMerge(Json.obj("action" := "AssassinVote"))
+    case g@GameOverOutgoingEvent(_, _, _, _, _, _)      => GameOverOutgoingEvent.encoder.apply(g).deepMerge(Json.obj("action" := "GameOver"))
   }
 }

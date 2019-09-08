@@ -39,18 +39,27 @@ object QuestVoteEvent {
   implicit val decoder: Decoder[QuestVoteEvent] = deriveDecoder
 }
 
+case object QuestVotesDisplayed extends IncomingEvent
+
+case class IncomingAssassinVote(guess: Nickname) extends IncomingEvent
+object IncomingAssassinVote {
+  implicit val decoder: Decoder[IncomingAssassinVote] = deriveDecoder
+}
+
 object IncomingEventDecoder {
   implicit val decoder: Decoder[IncomingEvent] = Decoder.instance { hcursor =>
     for {
       eventName <- hcursor.downField("action").as[String]
       decoded <- eventName match {
-        case "CreateGame" => CreateGame.decoder.decodeJson(hcursor.value)
-        case "JoinGame"   => JoinGame.decoder.decodeJson(hcursor.value)
-        case "StartGame"  => Right(StartGame)
-        case "PlayerReady" => Right(PlayerReady)
-        case "ProposeParty" => ProposeParty.decoder.decodeJson(hcursor.value)
-        case "PartyApprovalVote" => PartyApprovalVote.decoder.decodeJson(hcursor.value)
-        case "QuestVote" => QuestVoteEvent.decoder.decodeJson(hcursor.value)
+        case "CreateGame"           => CreateGame.decoder.decodeJson(hcursor.value)
+        case "JoinGame"             => JoinGame.decoder.decodeJson(hcursor.value)
+        case "StartGame"            => Right(StartGame)
+        case "PlayerReady"          => Right(PlayerReady)
+        case "ProposeParty"         => ProposeParty.decoder.decodeJson(hcursor.value)
+        case "PartyApprovalVote"    => PartyApprovalVote.decoder.decodeJson(hcursor.value)
+        case "QuestVote"            => QuestVoteEvent.decoder.decodeJson(hcursor.value)
+        case "QuestVotesDisplayed"  => Right(QuestVotesDisplayed)
+        case "AssassinVote" => IncomingAssassinVote.decoder.decodeJson(hcursor.value)
       }
     } yield decoded
   }

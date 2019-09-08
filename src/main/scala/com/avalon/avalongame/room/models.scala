@@ -2,6 +2,7 @@ package com.avalon.avalongame.room
 
 import cats.data.NonEmptyList
 import cats.implicits._
+import cats.kernel.Eq
 import com.avalon.avalongame.common._
 import com.avalon.avalongame.events.PartyApprovalVote
 
@@ -11,6 +12,9 @@ import scala.util.control.NoStackTrace
 // Errors
 //==================
 
+case class PlayerIsNotTheAssassin(nickname: Nickname) extends RuntimeException with NoStackTrace
+case object NoPlayerIsMerlinSomehow extends RuntimeException with NoStackTrace
+case object NoPlayerIsTheAssassinSomehow extends RuntimeException with NoStackTrace
 case object AllMissionsHaveBeenCompleted extends RuntimeException with NoStackTrace
 case class PlayerAlreadyViewedQuestResults(nickname: Nickname) extends RuntimeException with NoStackTrace
 case class PlayerNotPartOfQuest(nickname: Nickname) extends RuntimeException with NoStackTrace
@@ -150,6 +154,9 @@ object Missions {
 }
 
 sealed trait Role
+object Role {
+  def eq: Eq[Role] = Eq.fromUniversalEquals
+}
 
 sealed trait BadGuy extends Role
 case object Assassin extends BadGuy
@@ -158,6 +165,10 @@ case object NormalBadGuy extends BadGuy
 sealed trait GoodGuy extends Role
 case object Merlin extends GoodGuy
 case object NormalGoodGuy extends GoodGuy
+
+sealed trait Side
+case object BadGuys extends Side
+case object GoodGuys extends Side
 
 
 sealed trait PlayerRole {
@@ -175,6 +186,7 @@ case class MissionProposed(voters: NonEmptyList[User]) extends GameState
 case class QuestPhase(missionNumber: Int, missionLeader: Nickname, questers: List[Nickname], votes: List[PlayerQuestVote]) extends GameState
 case object AssassinVoteState extends GameState
 case object BadSideWins extends GameState
+case object GoodSideWins extends GameState
 
 
 //this is the state where we're waiting for all clients to acknowledge the quest results before we tell them the new state of the game
@@ -182,6 +194,13 @@ case class QuestResultsViewing(info: QuestPhaseEnum, viewed: List[Nickname]) ext
 sealed trait QuestPhaseEnum
 case class NextMission(previousMissionLeader: Nickname) extends QuestPhaseEnum
 case object AssassinNeedsToVote extends QuestPhaseEnum
+//case class GameOver(assassin: Nickname,
+//                    assassinGuess: Option[Nickname],
+//                    merlin: Nickname,
+//                    goodGuys: List[GoodPlayerRole],
+//                    badGuys: List[BadPlayerRole],
+//                    winningTeam: Side) extends OutgoingEvent
+
 case object BadGuysWin extends QuestPhaseEnum
 
 
@@ -197,3 +216,10 @@ case class InternalRoom(players: List[Nickname], gameRepresentation: Option[Game
 
 case class PlayerTeamVote(nickname: Nickname, vote: TeamVote)
 case class PlayerQuestVote(nickname: Nickname, vote: QuestVote)
+
+case class GameOver(assassin: BadPlayerRole, //somehow type this so it _has_ to be assassin
+                    assassinGuess: Option[Nickname],
+                    merlin: GoodPlayerRole,  //somehow type this it _has_ to be merlin
+                    goodGuys: List[GoodPlayerRole],
+                    badGuys: List[BadPlayerRole],
+                    winningTeam: Side)

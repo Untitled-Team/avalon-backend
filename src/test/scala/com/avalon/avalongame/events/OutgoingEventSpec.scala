@@ -90,6 +90,14 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     }
   }
 
+  test("make sure we can encode GameOver event") {
+    forAll { gameOver: GameOverOutgoingEvent =>
+      val json = gameOverJson(gameOver)
+
+      json should be(OutgoingEventEncoder.encoder(gameOver))
+    }
+  }
+
   def gameCreatedJson(moveToLobby: MoveToLobby): Json =
     Json.obj(
       "action" := "MoveToLobby",
@@ -140,6 +148,19 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "assassinVoteData" := Json.obj(
         "assassin" := assassinVote.assassin,
         "goodGuys" := assassinVote.goodGuys
+      )
+    )
+
+  def gameOverJson(gameOver: GameOverOutgoingEvent): Json =
+    Json.obj(
+      "action" := "GameOver",
+      "gameOverData" := Json.obj(
+        "assassin" := gameOver.assassin,
+        "assassinGuess" := gameOver.assassinGuess,
+        "merlin" := gameOver.merlin,
+        "goodGuys" := gameOver.goodGuys.map(_.nickname.value),
+        "badGuys" := gameOver.badGuys.map(_.nickname.value),
+        "winningTeam" := gameOver.winningTeam
       )
     )
 }
