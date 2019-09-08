@@ -123,7 +123,21 @@ object EventManager {
                     case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getStackTrace}"))
                   }
 
-                case QuestVoteEvent(_) => F.unit
+                case QuestVoteEvent(vote) =>
+                  (for {
+                    ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
+                    room          <- roomManager.get(ctx.roomId)
+                    voteStatus    <- room.questVote(ctx.nickname, vote)
+                    mapping       <- outgoingRef.get
+                    outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+                    _ <- voteStatus match {
+                      case QuestPhaseStillVoting => F.unit
+                      case FinishedVote(votes) =>
+                        outgoing.sendToAll(PassFailVoteResults(votes.count(_ === QuestVote(true)), votes.count(_ === QuestVote(false))))
+                    }
+                  } yield ()).onError {
+                    case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getStackTrace}"))
+                  }
               }}.handleErrorWith(t => F.delay(println(t)))
             }
           }.compile.drain

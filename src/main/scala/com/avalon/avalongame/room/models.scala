@@ -11,6 +11,8 @@ import scala.util.control.NoStackTrace
 // Errors
 //==================
 
+case object AllMissionsHaveBeenCompleted extends RuntimeException with NoStackTrace
+case class PlayerAlreadyViewedQuestResults(nickname: Nickname) extends RuntimeException with NoStackTrace
 case class PlayerNotPartOfQuest(nickname: Nickname) extends RuntimeException with NoStackTrace
 case class PlayerCantVoteMoreThanOnce(nickname: Nickname) extends RuntimeException with NoStackTrace
 case object GameHasStarted extends RuntimeException with NoStackTrace
@@ -31,21 +33,21 @@ case class PlayerAlreadyReady(nickname: Nickname) extends RuntimeException with 
 case class MissionProposal(missionNumber: Int, missionLeader: Nickname, players: List[Nickname])
 case class FinishedTeamVote(votes: List[PlayerTeamVote])
 
-sealed abstract case class Mission(players: Option[List[Nickname]], numberOfAdventurers: Int, votes: List[FinishedTeamVote], pass: Option[QuestVote])
+sealed abstract case class Mission(number: Int, players: Option[List[Nickname]], numberOfAdventurers: Int, votes: List[FinishedTeamVote], pass: Option[QuestVote])
 
 object Mission {
-  def make(players: Option[List[Nickname]], numberOfAdventurers: Int): Mission =
-    new Mission(players, numberOfAdventurers, Nil, None){}
+  def make(number: Int, players: Option[List[Nickname]], numberOfAdventurers: Int): Mission =
+    new Mission(number, players, numberOfAdventurers, Nil, None){}
 
   def addFinishedTeamVote(mission: Mission, votes: List[PlayerTeamVote]): Mission =
-    new Mission(mission.players, mission.numberOfAdventurers, mission.votes :+ FinishedTeamVote(votes), mission.pass){}
+    new Mission(mission.number, mission.players, mission.numberOfAdventurers, mission.votes :+ FinishedTeamVote(votes), mission.pass){}
 
   //maybe fail if we try to update this when the players have already been set??????
   def addQuesters(mission: Mission, players: List[Nickname]): Mission =
-    new Mission(Some(players), mission.numberOfAdventurers, mission.votes, mission.pass){}
+    new Mission(mission.number, Some(players), mission.numberOfAdventurers, mission.votes, mission.pass){}
 
   def completeQuest(mission: Mission, pass: QuestVote): Mission = //maybe fail if one is already set???
-    new Mission(mission.players, mission.numberOfAdventurers, mission.votes, Some(pass)){}
+    new Mission(mission.number, mission.players, mission.numberOfAdventurers, mission.votes, Some(pass)){}
 }
 
 sealed abstract case class Missions(one: Mission,
@@ -58,35 +60,35 @@ object Missions {
     case 5  =>
       Right(
         new Missions(
-          Mission.make(None, 2),
-          Mission.make(None, 3),
-          Mission.make(None, 2),
-          Mission.make(None, 3),
-          Mission.make(None, 3)){})
+          Mission.make(1, None, 2),
+          Mission.make(2, None, 3),
+          Mission.make(3, None, 2),
+          Mission.make(4, None, 3),
+          Mission.make(5, None, 3)){})
     case 6  =>
       Right(
         new Missions(
-          Mission.make(None, 2),
-          Mission.make(None, 3),
-          Mission.make(None, 4),
-          Mission.make(None, 3),
-          Mission.make(None, 4)){})
+          Mission.make(1, None, 2),
+          Mission.make(2, None, 3),
+          Mission.make(3, None, 4),
+          Mission.make(4, None, 3),
+          Mission.make(5, None, 4)){})
     case 7  =>
       Right(
         new Missions(
-          Mission.make(None, 2),
-          Mission.make(None, 3),
-          Mission.make(None, 3),
-          Mission.make(None, 4),
-          Mission.make(None, 4)){})
+          Mission.make(1, None, 2),
+          Mission.make(2, None, 3),
+          Mission.make(3, None, 3),
+          Mission.make(4, None, 4),
+          Mission.make(5, None, 4)){})
     case 8 | 9 | 10  =>
       Right(
         new Missions(
-          Mission.make(None, 3),
-          Mission.make(None, 4),
-          Mission.make(None, 4),
-          Mission.make(None, 5),
-          Mission.make(None, 5)){})
+          Mission.make(1, None, 3),
+          Mission.make(2, None, 4),
+          Mission.make(3, None, 4),
+          Mission.make(4, None, 5),
+          Mission.make(5, None, 5)){})
 
     case _ => Left(NotEnoughPlayers(players))
   }
@@ -133,6 +135,9 @@ object Missions {
       case _  => Left(InvalidMissionNumber(missionNumber))
     }
 
+  def currentMission(missions: Missions): Either[Throwable, Mission] =
+    List(missions.one, missions.two, missions.three, missions.four, missions.five).find(_.pass.isEmpty).toRight(AllMissionsHaveBeenCompleted)
+
   def failedQuests(missions: Missions): Int =
     List(missions.one, missions.two, missions.three, missions.four, missions.five)
       .flatMap(_.pass)
@@ -168,10 +173,13 @@ case class MissionProposing(missionNumber: Int, missionLeader: Nickname) extends
 case class MissionVoting(missionNumber: Int, missionLeader: Nickname, users: List[Nickname], votes: List[PlayerTeamVote]) extends GameState
 case class MissionProposed(voters: NonEmptyList[User]) extends GameState
 case class QuestPhase(missionNumber: Int, missionLeader: Nickname, questers: List[Nickname], votes: List[PlayerQuestVote]) extends GameState
+case object AssassinVoteState extends GameState
+case object BadSideWins extends GameState
 
 
 //this is the state where we're waiting for all clients to acknowledge the quest results before we tell them the new state of the game
-sealed trait QuestPhaseEnum extends GameState
+case class QuestResultsViewing(info: QuestPhaseEnum, viewed: List[Nickname]) extends GameState
+sealed trait QuestPhaseEnum
 case class NextMission(previousMissionLeader: Nickname) extends QuestPhaseEnum
 case object AssassinNeedsToVote extends QuestPhaseEnum
 case object BadGuysWin extends QuestPhaseEnum

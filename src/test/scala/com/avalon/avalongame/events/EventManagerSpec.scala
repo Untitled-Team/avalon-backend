@@ -195,6 +195,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               override def proposeMission(nickname: Nickname, users: List[Nickname]): IO[MissionProposal] = ???
               def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
               def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
+              def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
             }
           }
         }
@@ -243,6 +244,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               override def proposeMission(nickname: Nickname, users: List[Nickname]): IO[MissionProposal] = ???
               def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
               def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
+              def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
             }
           }
         }
@@ -294,6 +296,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
                 IO.pure(MissionProposal(1, nickname1, players))
               def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
               def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
+              def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
             }
           }
         }
@@ -345,6 +348,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] =
                 IO.pure(FailedVote(nickname1, 1, Nil, missions))
               def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
+              def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
             }
           }
         }
@@ -365,6 +369,112 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
             Stream.eval(IO.pure(PartyApprovalVote(TeamVote(false))))).unsafeRunSync()
         sendToAllRef.get.unsafeRunSync() should be(
           Some(TeamAssignmentPhase(1, nickname1, missions)))
+      }
+    }
+  }
+
+  test("Make sure we send the PartyApproved message to _everyone_ when a proposed party is successful") {
+    forAll { (roomId: RoomId) =>
+      new context {
+
+        val sendToAllRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+        val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val mockOutgoingManager: OutgoingManager[IO] = new OutgoingManager[IO] {
+          override def add(usernameWithSend: UsernameWithSend[IO]): IO[Unit] = IO.unit
+          override def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = IO.unit
+          override def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] = IO.unit
+          override def sendToAll(event: OutgoingEvent): IO[Unit] = sendToAllRef.set(Some(event))
+          def sendToAllUserSpecific(outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] = IO.unit
+        }
+
+        val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
+          override def create(roomId: RoomId): IO[Unit] = IO.unit
+          override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
+            new Room[IO] {
+              override def players: IO[List[Nickname]] = IO(Nil)
+              override def addUser(player: Nickname): IO[Unit] = IO.unit
+              override def startGame: IO[AllPlayerRoles] = ???
+              override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = ???
+              override def proposeMission(nickname: Nickname, players: List[Nickname]): IO[MissionProposal] = ???
+              def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] =
+                IO.pure(SuccessfulVote(Nil))
+              def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
+              def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
+            }
+          }
+        }
+
+        override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
+          override def generate: IO[RoomId] = IO.pure(roomId)
+        }
+
+        val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
+
+
+        val eventManager: EventManager[IO] = EventManager.buildOutgoing[IO](mockRoomManager, mockRoomIdGenerator, outgoingRef)
+        val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
+
+        eventManager.interpret(
+          userQueue,
+          Stream.eval(IO.pure(JoinGame(nickname1, roomId))) ++
+            Stream.eval(IO.pure(PartyApprovalVote(TeamVote(false))))).unsafeRunSync()
+        sendToAllRef.get.unsafeRunSync() should be(
+          Some(PartyApproved))
+      }
+    }
+  }
+
+  test("Make sure we send the PassFailVoteResults message to _everyone_ when a mission is finished") {
+    forAll { (roomId: RoomId) =>
+      new context {
+
+        val sendToAllRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+        val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val mockOutgoingManager: OutgoingManager[IO] = new OutgoingManager[IO] {
+          override def add(usernameWithSend: UsernameWithSend[IO]): IO[Unit] = IO.unit
+          override def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = IO.unit
+          override def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] = IO.unit
+          override def sendToAll(event: OutgoingEvent): IO[Unit] = sendToAllRef.set(Some(event))
+          def sendToAllUserSpecific(outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] = IO.unit
+        }
+
+        val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
+          override def create(roomId: RoomId): IO[Unit] = IO.unit
+          override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
+            new Room[IO] {
+              override def players: IO[List[Nickname]] = IO(Nil)
+              override def addUser(player: Nickname): IO[Unit] = IO.unit
+              override def startGame: IO[AllPlayerRoles] = ???
+              override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = ???
+              override def proposeMission(nickname: Nickname, players: List[Nickname]): IO[MissionProposal] = ???
+              def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
+              def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] =
+                IO.pure(FinishedVote(List(QuestVote(true), QuestVote(false))))
+              def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
+            }
+          }
+        }
+
+        override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
+          override def generate: IO[RoomId] = IO.pure(roomId)
+        }
+
+        val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
+
+
+        val eventManager: EventManager[IO] = EventManager.buildOutgoing[IO](mockRoomManager, mockRoomIdGenerator, outgoingRef)
+        val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
+
+        eventManager.interpret(
+          userQueue,
+          Stream.eval(IO.pure(JoinGame(nickname1, roomId))) ++
+            Stream.eval(IO.pure(QuestVoteEvent(QuestVote(false))))).unsafeRunSync()
+        sendToAllRef.get.unsafeRunSync() should be(
+          Some(PassFailVoteResults(1, 1)))
       }
     }
   }

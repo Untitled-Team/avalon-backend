@@ -74,6 +74,22 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     partyApprovedJson should be(OutgoingEventEncoder.encoder(PartyApproved))
   }
 
+  test("make sure we can encode PassFailVoteResults event") {
+    forAll { passFailVoteResults: PassFailVoteResults =>
+      val json = passFailVoteResultsJson(passFailVoteResults)
+
+      json should be(OutgoingEventEncoder.encoder(passFailVoteResults))
+    }
+  }
+
+  test("make sure we can encode AssassinVoteOutgoingEvent event") {
+    forAll { assassinVoteOutgoingEvent: AssassinVoteOutgoingEvent =>
+      val json = assassinVoteJson(assassinVoteOutgoingEvent)
+
+      json should be(OutgoingEventEncoder.encoder(assassinVoteOutgoingEvent))
+    }
+  }
+
   def gameCreatedJson(moveToLobby: MoveToLobby): Json =
     Json.obj(
       "action" := "MoveToLobby",
@@ -110,4 +126,20 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
 
   val partyApprovedJson: Json =
     Json.obj("action" := "PartyApproved")
+
+  def passFailVoteResultsJson(passFailVoteResults: PassFailVoteResults): Json =
+    Json.obj(
+      "action" := "PassFailVoteResults",
+      "passVotes" := passFailVoteResults.passVotes,
+      "failVotes" := passFailVoteResults.failVotes
+    )
+
+  def assassinVoteJson(assassinVote: AssassinVoteOutgoingEvent): Json =
+    Json.obj(
+      "action" := "AssassinVote",
+      "assassinVoteData" := Json.obj(
+        "assassin" := assassinVote.assassin,
+        "goodGuys" := assassinVote.goodGuys
+      )
+    )
 }

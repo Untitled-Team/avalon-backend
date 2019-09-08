@@ -19,6 +19,7 @@ trait Room[F[_]] {
   def proposeMission(nickname: Nickname, users: List[Nickname]): F[MissionProposal]
   def teamVote(nickname: Nickname, vote: TeamVote): F[TeamVoteEnum]
   def questVote(nickname: Nickname, vote: QuestVote): F[QuestVotingEnum]
+  def questResultsSeen(nickname: Nickname): F[AfterQuest]
 }
 
 object Room {
@@ -192,9 +193,11 @@ object Room {
                   F.fromEither[Missions](
                     Missions.completeMission(repr.missions, questPhase.missionNumber, QuestVote(currentMissionPassStatus)))
                     .map[GameRepresentation] { updatedMissions =>
-                      if (Missions.failedQuests(updatedMissions) === 3) repr.copy(state = BadGuysWin, missions = updatedMissions)
-                      else if (Missions.successfulQuests(updatedMissions) === 3) repr.copy(state = AssassinNeedsToVote, missions = updatedMissions)
-                      else repr.copy(state = NextMission(questPhase.missionLeader), missions = updatedMissions)
+                      if (Missions.failedQuests(updatedMissions) === 3)
+                        repr.copy(state = QuestResultsViewing(BadGuysWin, Nil), missions = updatedMissions)
+                      else if (Missions.successfulQuests(updatedMissions) === 3)
+                        repr.copy(state = QuestResultsViewing(AssassinNeedsToVote, Nil), missions = updatedMissions)
+                      else repr.copy(state = QuestResultsViewing(NextMission(questPhase.missionLeader), Nil), missions = updatedMissions)
                     }
                 else
                   F.pure(repr.copy(state = updatedState))
@@ -204,6 +207,50 @@ object Room {
                 if (updatedState.votes.size === currentNumberOfAdventurers)
                   F.pure(FinishedVote(updatedState.votes.map(_.vote))).widen[QuestVotingEnum]
                 else F.pure(QuestPhaseStillVoting).widen[QuestVotingEnum]
+
+              _ <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
+            } yield result)
+              .guaranteeCase {
+                case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
+                case ExitCase.Completed => F.unit
+              }
+          }
+
+        def questResultsSeen(nickname: Nickname): F[AfterQuest] =
+          mvar.take.flatMap { room =>
+            (for {
+              repr <- F.fromOption(room.gameRepresentation, GameNotStarted)
+              questResultsViewing <- repr.state match {
+                case q@QuestResultsViewing(_, _) => F.pure(q)
+                case _ => F.raiseError[QuestResultsViewing](InvalidStateTransition(repr.state, "questResultsSeen", nickname))
+              }
+
+              updatedState <-
+                if (questResultsViewing.viewed.contains(nickname))
+                  F.raiseError[QuestResultsViewing](PlayerAlreadyViewedQuestResults(nickname))
+                else F.pure(questResultsViewing.copy(viewed = questResultsViewing.viewed :+ nickname))
+
+              resultAndUpdatedRepr <-
+                if (updatedState.viewed.size === repr.users.size)
+                  updatedState.info match {
+                    case NextMission(previousLeader) =>
+                      (for {
+                        nextMissionLeader <- randomAlg.randomGet(room.players.filter(_ =!= previousLeader))
+                        currentMission <- F.fromEither[Mission](Missions.currentMission(repr.missions))
+                      } yield
+                        (GameContinues(nextMissionLeader, currentMission.number, repr.missions),
+                          repr.copy(state = MissionProposing(currentMission.number, nextMissionLeader)))).widen[(AfterQuest, GameRepresentation)]
+                    case AssassinNeedsToVote => F.pure {
+                      (AssassinVote(repr.goodGuys), repr.copy(state = AssassinVoteState))
+                    }.widen[(AfterQuest, GameRepresentation)]
+                    case BadGuysWin => F.pure {
+                      (BadGuyVictory, repr.copy(BadSideWins))
+                    }.widen[(AfterQuest, GameRepresentation)]
+                  }
+                else
+                  F.pure((StillViewingQuestResults, repr.copy(state = updatedState))).widen[(AfterQuest, GameRepresentation)]
+
+              (result, updatedRepr) = resultAndUpdatedRepr
 
               _ <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
             } yield result)
@@ -229,7 +276,9 @@ sealed trait QuestVotingEnum
 case object QuestPhaseStillVoting extends QuestVotingEnum
 case class FinishedVote(votes: List[QuestVote]) extends QuestVotingEnum
 
-//sealed trait QuestVoteEnum
-//case class NextMission(previousMissionLeader: Nickname) extends QuestVoteEnum
-//case object AssassinNeedsToVote extends QuestVoteEnum
-//case object BadGuysWin extends QuestVoteEnum
+
+sealed trait AfterQuest
+case object StillViewingQuestResults extends AfterQuest
+case class AssassinVote(goodGuys: List[GoodPlayerRole]) extends AfterQuest
+case object BadGuyVictory extends AfterQuest
+case class GameContinues(missionLeader: Nickname, missionNumber: Int, missions: Missions) extends AfterQuest

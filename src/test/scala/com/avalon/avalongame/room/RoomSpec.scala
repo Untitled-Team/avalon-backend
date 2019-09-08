@@ -674,7 +674,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 1)).unsafeRunSync()
         completedMission.pass should be(Some(QuestVote(false)))
 
-        repr.state should be(NextMission(user1))
+        repr.state should be(QuestResultsViewing(NextMission(user1), Nil))
       }
     }
 
@@ -709,7 +709,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 1)).unsafeRunSync()
         completedMission.pass should be(Some(QuestVote(true)))
 
-        repr.state should be(NextMission(user1))
+        repr.state should be(QuestResultsViewing(NextMission(user1), Nil))
       }
     }
 
@@ -749,7 +749,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 3)).unsafeRunSync()
         completedMission.pass should be(Some(QuestVote(false)))
 
-        repr.state should be(BadGuysWin)
+        repr.state should be(QuestResultsViewing(BadGuysWin, Nil))
       }
     }
 
@@ -789,7 +789,258 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 3)).unsafeRunSync()
         completedMission.pass should be(Some(QuestVote(true)))
 
-        repr.state should be(AssassinNeedsToVote)
+        repr.state should be(QuestResultsViewing(AssassinNeedsToVote, Nil))
+      }
+    }
+  }
+
+  "questResultsSeen" should {
+    "fail if someone reports they've viewed the results twice" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          QuestResultsViewing(AssassinNeedsToVote, Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questResultsSeen(user1).unsafeRunSync() should be(StillViewingQuestResults)
+        room.questResultsSeen(user1).attempt.unsafeRunSync() should be(Left(PlayerAlreadyViewedQuestResults(user1)))
+      }
+    }
+
+    "fail if someone reports they've viewed when we're not in the QuestResultsViewing state" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          QuestPhase(3, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questResultsSeen(user1).attempt.unsafeRunSync() should be(
+          Left(InvalidStateTransition(QuestPhase(3, user1, List(user1, user2), Nil), "questResultsSeen", user1)))
+      }
+    }
+
+    "return StillViewingQuestResults when not everyone has seen them" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          QuestResultsViewing(AssassinNeedsToVote, Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questResultsSeen(user1).unsafeRunSync() should be(StillViewingQuestResults)
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+
+        repr.state should be(QuestResultsViewing(AssassinNeedsToVote, List(user1)))
+      }
+    }
+
+    "tell us the AssassionVote should happen when everyone has viewed the results - and our state was AssassinNeedsToVote" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val goodPlayerRoles = List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
+
+        val gr = GameRepresentation(
+          QuestResultsViewing(AssassinNeedsToVote, Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          goodPlayerRoles,
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questResultsSeen(user1).unsafeRunSync() should be(StillViewingQuestResults)
+        room.questResultsSeen(user2).unsafeRunSync() should be(StillViewingQuestResults)
+        room.questResultsSeen(user3).unsafeRunSync() should be(StillViewingQuestResults)
+        room.questResultsSeen(user4).unsafeRunSync() should be(StillViewingQuestResults)
+        room.questResultsSeen(user5).unsafeRunSync() should be(AssassinVote(goodPlayerRoles))
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+
+        repr.state should be(AssassinVoteState)
+      }
+    }
+
+    "tell us the BadGuyVictory when everyone has viewed the results - and our state was BadGuysWin" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val goodPlayerRoles = List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
+
+        val gr = GameRepresentation(
+          QuestResultsViewing(BadGuysWin, Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          goodPlayerRoles,
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questResultsSeen(user1).unsafeRunSync() should be(StillViewingQuestResults)
+        room.questResultsSeen(user2).unsafeRunSync() should be(StillViewingQuestResults)
+        room.questResultsSeen(user3).unsafeRunSync() should be(StillViewingQuestResults)
+        room.questResultsSeen(user4).unsafeRunSync() should be(StillViewingQuestResults)
+        room.questResultsSeen(user5).unsafeRunSync() should be(BadGuyVictory)
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+
+        repr.state should be(BadSideWins)
+      }
+    }
+
+    "be valid when GameContinues is returned" should {
+      "tell us the GameContinues when everyone has viewed results - and our state was NextMission" in {
+        forAll { (roomId: RoomId, config: GameConfig) =>
+
+          val user1 = Nickname("Taylor")
+          val user2 = Nickname("Nick")
+          val user3 = Nickname("Chris")
+          val user4 = Nickname("Carter")
+          val user5 = Nickname("Austin")
+
+          val users = List(user1, user2, user3, user4, user5)
+
+          val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+          val goodPlayerRoles = List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
+
+          val gr = GameRepresentation(
+            QuestResultsViewing(NextMission(user1), Nil),
+            missions,
+            List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+            goodPlayerRoles,
+            users)
+
+          val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+          val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+          room.questResultsSeen(user1).unsafeRunSync() should be(StillViewingQuestResults)
+          room.questResultsSeen(user2).unsafeRunSync() should be(StillViewingQuestResults)
+          room.questResultsSeen(user3).unsafeRunSync() should be(StillViewingQuestResults)
+          room.questResultsSeen(user4).unsafeRunSync() should be(StillViewingQuestResults)
+          room.questResultsSeen(user5).unsafeRunSync() should be(GameContinues(user2, 1, missions))
+
+          val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+
+          repr.state should be(MissionProposing(1, user2))
+        }
+      }
+
+      "return the latest mission based on which ones have been completed" in {
+        forAll { (roomId: RoomId, config: GameConfig) =>
+
+          val user1 = Nickname("Taylor")
+          val user2 = Nickname("Nick")
+          val user3 = Nickname("Chris")
+          val user4 = Nickname("Carter")
+          val user5 = Nickname("Austin")
+
+          val users = List(user1, user2, user3, user4, user5)
+
+          val missions = {
+            val default = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+            val updateMissions1 = IO.fromEither(Missions.completeMission(default, 1, QuestVote(true))).unsafeRunSync()
+            IO.fromEither(Missions.completeMission(updateMissions1, 2, QuestVote(true))).unsafeRunSync()
+          }
+
+          val goodPlayerRoles = List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
+
+          val gr = GameRepresentation(
+            QuestResultsViewing(NextMission(user1), Nil),
+            missions,
+            List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+            goodPlayerRoles,
+            users)
+
+          val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+          val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+          room.questResultsSeen(user1).unsafeRunSync() should be(StillViewingQuestResults)
+          room.questResultsSeen(user2).unsafeRunSync() should be(StillViewingQuestResults)
+          room.questResultsSeen(user3).unsafeRunSync() should be(StillViewingQuestResults)
+          room.questResultsSeen(user4).unsafeRunSync() should be(StillViewingQuestResults)
+          room.questResultsSeen(user5).unsafeRunSync() should be(GameContinues(user2, 3, missions))
+
+          val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+
+          repr.state should be(MissionProposing(3, user2))
+        }
       }
     }
   }
