@@ -1,5 +1,6 @@
 package com.avalon.avalongame.events
 
+import cats.implicits._
 import com.avalon.avalongame.common._
 import com.avalon.avalongame.room._
 import io.circe._
@@ -13,11 +14,13 @@ object EventEncoders {
     Json.obj(
       "players" := m.players,
       "numberOfAdventurers" := m.numberOfAdventurers,
-      "pass" := true,
-      "votes" := Json.obj(
-        "passVotes" := None,
-        "failVotes" := None
-      ))
+      "pass" := m.pass,
+      "votes" := m.votes.map { vote =>
+        Json.obj(
+          "missionLeader" := vote.missionLeader,
+        "success" := vote.votes.filter(_.vote === TeamVote(true)).map(_.nickname),
+        "fail" := vote.votes.filter(_.vote === TeamVote(false)).map(_.nickname))
+      })
   }
 
   implicit val missionsEncoder: Encoder[Missions] = Encoder.instance { m =>

@@ -35,16 +35,20 @@ case class PlayerAlreadyReady(nickname: Nickname) extends RuntimeException with 
 
 
 case class MissionProposal(missionNumber: Int, missionLeader: Nickname, players: List[Nickname])
-case class FinishedTeamVote(votes: List[PlayerTeamVote])
+case class FinishedTeamVote(missionLeader: Nickname, votes: List[PlayerTeamVote])
 
-sealed abstract case class Mission(number: Int, players: Option[List[Nickname]], numberOfAdventurers: Int, votes: List[FinishedTeamVote], pass: Option[QuestVote])
+sealed abstract case class Mission(number: Int,
+                                   players: Option[List[Nickname]],
+                                   numberOfAdventurers: Int,
+                                   votes: List[FinishedTeamVote],
+                                   pass: Option[QuestVote])
 
 object Mission {
   def make(number: Int, players: Option[List[Nickname]], numberOfAdventurers: Int): Mission =
     new Mission(number, players, numberOfAdventurers, Nil, None){}
 
-  def addFinishedTeamVote(mission: Mission, votes: List[PlayerTeamVote]): Mission =
-    new Mission(mission.number, mission.players, mission.numberOfAdventurers, mission.votes :+ FinishedTeamVote(votes), mission.pass){}
+  def addFinishedTeamVote(mission: Mission, missionLeader: Nickname, votes: List[PlayerTeamVote]): Mission =
+    new Mission(mission.number, mission.players, mission.numberOfAdventurers, mission.votes :+ FinishedTeamVote(missionLeader, votes), mission.pass){}
 
   //maybe fail if we try to update this when the players have already been set??????
   def addQuesters(mission: Mission, players: List[Nickname]): Mission =
@@ -109,13 +113,13 @@ object Missions {
     }
 
   //tests
-  def addFinishedTeamVote(missions: Missions, missionNumber: Int, failedVotes: List[PlayerTeamVote]): Either[Throwable, Missions] =
+  def addFinishedTeamVote(missions: Missions, missionNumber: Int, leader: Nickname, failedVotes: List[PlayerTeamVote]): Either[Throwable, Missions] =
     missionNumber match {
-      case 1  => Right(new Missions(Mission.addFinishedTeamVote(missions.one, failedVotes), missions.two, missions.three, missions.four, missions.five){})
-      case 2  => Right(new Missions(missions.one, Mission.addFinishedTeamVote(missions.two, failedVotes), missions.three, missions.four, missions.five){})
-      case 3  => Right(new Missions(missions.one, missions.two, Mission.addFinishedTeamVote(missions.three, failedVotes), missions.four, missions.five){})
-      case 4  => Right(new Missions(missions.one, missions.two, missions.three, Mission.addFinishedTeamVote(missions.four, failedVotes), missions.five){})
-      case 5  => Right(new Missions(missions.one, missions.two, missions.three, missions.four, Mission.addFinishedTeamVote(missions.five, failedVotes)){})
+      case 1  => Right(new Missions(Mission.addFinishedTeamVote(missions.one, leader, failedVotes), missions.two, missions.three, missions.four, missions.five){})
+      case 2  => Right(new Missions(missions.one, Mission.addFinishedTeamVote(missions.two, leader, failedVotes), missions.three, missions.four, missions.five){})
+      case 3  => Right(new Missions(missions.one, missions.two, Mission.addFinishedTeamVote(missions.three, leader, failedVotes), missions.four, missions.five){})
+      case 4  => Right(new Missions(missions.one, missions.two, missions.three, Mission.addFinishedTeamVote(missions.four, leader, failedVotes), missions.five){})
+      case 5  => Right(new Missions(missions.one, missions.two, missions.three, missions.four, Mission.addFinishedTeamVote(missions.five, leader, failedVotes)){})
       case _  => Left(InvalidMissionNumber(missionNumber))
     }
 

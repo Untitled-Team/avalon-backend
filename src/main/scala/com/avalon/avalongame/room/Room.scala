@@ -134,7 +134,8 @@ object Room {
                 if (updatedState.votes.size === room.players.size)
                   if (updatedState.votes.count(_.vote === TeamVote(false)) >= updatedState.votes.count(_.vote === TeamVote(true)))
                     (for {
-                      updatedMissions <- F.fromEither(Missions.addFinishedTeamVote(repr.missions, proposal.missionNumber, updatedState.votes))
+                      updatedMissions <- F.fromEither(
+                        Missions.addFinishedTeamVote(repr.missions, proposal.missionNumber, proposal.missionLeader, updatedState.votes))
                       newMissionLeader <- randomAlg.randomGet(room.players.filter(_ =!= proposal.missionLeader))
                     } yield FailedVote(newMissionLeader, proposal.missionNumber, updatedState.votes, updatedMissions)).widen[TeamVoteEnum]
 
@@ -151,7 +152,7 @@ object Room {
                       missions = missions)
                   }
                 case SuccessfulVote(votes) =>
-                  F.fromEither(Missions.addFinishedTeamVote(repr.missions, proposal.missionNumber, votes)).flatMap { m =>
+                  F.fromEither(Missions.addFinishedTeamVote(repr.missions, proposal.missionNumber, proposal.missionLeader, votes)).flatMap { m =>
                     F.fromEither(Missions.addQuesters(m, proposal.missionNumber, proposal.users)).map { updatedMissions =>
                       repr.copy(
                         state = QuestPhase(proposal.missionNumber, proposal.missionLeader, proposal.users, Nil),

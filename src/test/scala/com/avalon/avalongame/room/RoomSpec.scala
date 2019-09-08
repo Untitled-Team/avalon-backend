@@ -313,7 +313,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
     }
   }
 
-  "teamVote" should {
+  "teamVote" should { //make sure the mission is updated with the correct mission leader!!!!
     "fail if we call it from the wrong state" in {
       forAll { (roomId: RoomId, config: GameConfig) =>
 
@@ -417,7 +417,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           PlayerTeamVote(user4, TeamVote(false)),
           PlayerTeamVote(user5, TeamVote(false)))
 
-        val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, votes)).unsafeRunSync()
+        val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, user1, votes)).unsafeRunSync()
 
         result1 should be(TeamPhaseStillVoting)
         result2 should be(TeamPhaseStillVoting)
@@ -471,7 +471,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         result5 should be(SuccessfulVote(votes))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
-        repr.missions.one.votes should be(List(FinishedTeamVote(votes)))
+        repr.missions.one.votes should be(List(FinishedTeamVote(user1, votes)))
         repr.missions.one.players.get should be(List(user1, user2))
       }
     }
@@ -516,7 +516,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           PlayerTeamVote(user5, TeamVote(false)),
           PlayerTeamVote(user6, TeamVote(false)))
 
-        val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, votes)).unsafeRunSync()
+        val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, user1, votes)).unsafeRunSync()
 
         result1 should be(TeamPhaseStillVoting)
         result2 should be(TeamPhaseStillVoting)
@@ -567,7 +567,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           PlayerTeamVote(user5, TeamVote(false)),
           PlayerTeamVote(user6, TeamVote(false)))
 
-        val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, votes)).unsafeRunSync()
+        val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, user1, votes)).unsafeRunSync()
 
         result1 should be(TeamPhaseStillVoting)
         result2 should be(TeamPhaseStillVoting)
