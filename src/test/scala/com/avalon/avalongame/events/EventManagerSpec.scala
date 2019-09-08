@@ -696,7 +696,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
         eventManager.interpret(
           userQueue,
           Stream.eval(IO.pure(JoinGame(nickname1, roomId))) ++
-            Stream.eval(IO.pure(QuestVotesDisplayed))).unsafeRunSync()
+            Stream.eval(IO.pure(IncomingAssassinVote(nickname1)))).unsafeRunSync()
         sendToAllRef.get.unsafeRunSync() should be(
           Some(GameOverOutgoingEvent(nickname1, None, nickname2, Nil, Nil, BadGuys)))
       }

@@ -68,7 +68,7 @@ class IncomingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     }
   }
 
-  val actionKey = "action"
+  val actionKey = "event"
 
   def createGameJson(createGame: CreateGame): Json =
     Json.obj(

@@ -1,5 +1,7 @@
 package com.avalon.avalongame.events
 
+import java.io.{PrintWriter, StringWriter}
+
 import cats.implicits._
 import cats.effect._
 import cats.effect.concurrent.Ref
@@ -175,7 +177,11 @@ object EventManager {
                       gameOver.winningTeam)
                     _ <- outgoing.sendToAll(outgoingEvent)
                   } yield ()).onError {
-                    case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getStackTrace}"))
+                    case t => Sync[F].delay {
+                      val sw = new StringWriter
+                      val str = t.printStackTrace(new PrintWriter(sw))
+                      println(s"We encountered an error with IncomingAssassinVote for ???,  ${sw.toString}")
+                    }
                   }
               }}.handleErrorWith(t => F.delay(println(t)))
             }

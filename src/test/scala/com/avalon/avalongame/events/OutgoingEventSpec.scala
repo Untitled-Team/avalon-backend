@@ -100,27 +100,27 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
 
   def gameCreatedJson(moveToLobby: MoveToLobby): Json =
     Json.obj(
-      "action" := "MoveToLobby",
+      "event" := "MoveToLobby",
       "roomId" := moveToLobby.roomId.value,
       "players" := moveToLobby.players
     )
 
   def changeInLobbyJson(joinedRoom: ChangeInLobby): Json =
     Json.obj(
-      "action" := "ChangeInLobby",
+      "event" := "ChangeInLobby",
       "players" := joinedRoom.players
     )
 
   def playerRoleEventJson(playerRoleEvent: PlayerInfo): Json =
     Json.obj(
-      "action" := "PlayerInfo",
+      "event" := "PlayerInfo",
       "character" := playerRoleEvent.character,
       "badGuys" := playerRoleEvent.badGuys.map(_.map(_.nickname))
     )
 
   def teamAssignmentEventJson(missionProposalEvent: TeamAssignmentPhase): Json =
     Json.obj(
-      "action" := "TeamAssignmentPhase",
+      "event" := "TeamAssignmentPhase",
       "missionNumber" := missionProposalEvent.missionNumber,
       "missionLeader" := missionProposalEvent.missionLeader,
       "missions" := missionProposalEvent.missions
@@ -128,23 +128,23 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
 
   def proposedPartyJson(proposedParty: ProposedParty): Json =
     Json.obj(
-      "action" := "ProposedParty",
+      "event" := "ProposedParty",
       "players" := proposedParty.players
     )
 
   val partyApprovedJson: Json =
-    Json.obj("action" := "PartyApproved")
+    Json.obj("event" := "PartyApproved")
 
   def passFailVoteResultsJson(passFailVoteResults: PassFailVoteResults): Json =
     Json.obj(
-      "action" := "PassFailVoteResults",
+      "event" := "PassFailVoteResults",
       "passVotes" := passFailVoteResults.passVotes,
       "failVotes" := passFailVoteResults.failVotes
     )
 
   def assassinVoteJson(assassinVote: AssassinVoteOutgoingEvent): Json =
     Json.obj(
-      "action" := "AssassinVote",
+      "event" := "AssassinVote",
       "assassinVoteData" := Json.obj(
         "assassin" := assassinVote.assassin,
         "goodGuys" := assassinVote.goodGuys
@@ -153,7 +153,7 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
 
   def gameOverJson(gameOver: GameOverOutgoingEvent): Json =
     Json.obj(
-      "action" := "GameOver",
+      "event" := "GameOver",
       "gameOverData" := Json.obj(
         "assassin" := gameOver.assassin,
         "assassinGuess" := gameOver.assassinGuess,

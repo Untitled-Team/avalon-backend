@@ -49,7 +49,7 @@ object IncomingAssassinVote {
 object IncomingEventDecoder {
   implicit val decoder: Decoder[IncomingEvent] = Decoder.instance { hcursor =>
     for {
-      eventName <- hcursor.downField("action").as[String]
+      eventName <- hcursor.downField("event").as[String]
       decoded <- eventName match {
         case "CreateGame"           => CreateGame.decoder.decodeJson(hcursor.value)
         case "JoinGame"             => JoinGame.decoder.decodeJson(hcursor.value)
@@ -59,7 +59,7 @@ object IncomingEventDecoder {
         case "PartyApprovalVote"    => PartyApprovalVote.decoder.decodeJson(hcursor.value)
         case "QuestVote"            => QuestVoteEvent.decoder.decodeJson(hcursor.value)
         case "QuestVotesDisplayed"  => Right(QuestVotesDisplayed)
-        case "AssassinVote" => IncomingAssassinVote.decoder.decodeJson(hcursor.value)
+        case "AssassinVote"         => IncomingAssassinVote.decoder.decodeJson(hcursor.value)
       }
     } yield decoded
   }

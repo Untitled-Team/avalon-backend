@@ -77,14 +77,14 @@ object GameOverOutgoingEvent {
 
 object OutgoingEventEncoder {
   implicit val encoder: Encoder[OutgoingEvent] = Encoder.instance {
-    case g@MoveToLobby(_, _)               => MoveToLobby.encoder.apply(g).deepMerge(Json.obj("action" := "MoveToLobby"))
-    case j@ChangeInLobby(_)                => ChangeInLobby.encoder.apply(j).deepMerge(Json.obj("action" := "ChangeInLobby"))
-    case p@PlayerInfo(_, _)                => PlayerInfo.encoder.apply(p).deepMerge(Json.obj("action" := "PlayerInfo"))
-    case g@TeamAssignmentPhase(_, _, _)    => TeamAssignmentPhase.encoder.apply(g).deepMerge(Json.obj("action" := "TeamAssignmentPhase"))
-    case g@ProposedParty(_)                => ProposedParty.encoder.apply(g).deepMerge(Json.obj("action" := "ProposedParty"))
-    case PartyApproved                     => Json.obj("action" := "PartyApproved")
-    case p@PassFailVoteResults(_, _)       => PassFailVoteResults.encoder.apply(p).deepMerge(Json.obj("action" := "PassFailVoteResults"))
-    case a@AssassinVoteOutgoingEvent(_, _) => AssassinVoteOutgoingEvent.encoder.apply(a).deepMerge(Json.obj("action" := "AssassinVote"))
-    case g@GameOverOutgoingEvent(_, _, _, _, _, _)      => GameOverOutgoingEvent.encoder.apply(g).deepMerge(Json.obj("action" := "GameOver"))
+    case g@MoveToLobby(_, _)               => MoveToLobby.encoder.apply(g).deepMerge(Json.obj("event" := "MoveToLobby"))
+    case j@ChangeInLobby(_)                => ChangeInLobby.encoder.apply(j).deepMerge(Json.obj("event" := "ChangeInLobby"))
+    case p@PlayerInfo(_, _)                => PlayerInfo.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerInfo"))
+    case g@TeamAssignmentPhase(_, _, _)    => TeamAssignmentPhase.encoder.apply(g).deepMerge(Json.obj("event" := "TeamAssignmentPhase"))
+    case g@ProposedParty(_)                => ProposedParty.encoder.apply(g).deepMerge(Json.obj("event" := "ProposedParty"))
+    case PartyApproved                     => Json.obj("event" := "PartyApproved")
+    case p@PassFailVoteResults(_, _)       => PassFailVoteResults.encoder.apply(p).deepMerge(Json.obj("event" := "PassFailVoteResults"))
+    case a@AssassinVoteOutgoingEvent(_, _) => AssassinVoteOutgoingEvent.encoder.apply(a).deepMerge(Json.obj("event" := "AssassinVote"))
+    case g@GameOverOutgoingEvent(_, _, _, _, _, _) => GameOverOutgoingEvent.encoder.apply(g).deepMerge(Json.obj("event" := "GameOver"))
   }
 }

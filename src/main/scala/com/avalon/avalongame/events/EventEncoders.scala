@@ -9,19 +9,6 @@ import io.circe.generic.extras.semiauto.deriveUnwrappedDecoder
 import io.circe.syntax._
 
 object EventEncoders {
-//  implicit val gameStateEncoder: Encoder[GameState] = Encoder.instance {
-//    case Lobby => Json.obj("state" := "Lobby")
-//    case MissionProposing(mn, ml) => Json.obj("state" := "MissionProposing", "currentMission" := mn, "missionLeader" := ml)
-//    case MissionVoting(mn, ml, users, v) =>
-//      Json.obj(
-//        "state" := "MissionVoting",
-//        "currentMission" := mn,
-//        "missionLeader" := ml,
-//        "users" := users,
-//        "votes" := v)
-//    case MissionProposed(voters) => Json.obj("state" := "MissionProposing", "voters" := voters)
-//  }
-
   implicit val missionEncoder: Encoder[Mission] = Encoder.instance { m =>
     Json.obj(
       "players" := m.players,
