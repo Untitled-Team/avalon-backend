@@ -18,8 +18,8 @@ object EventEncoders {
       "votes" := m.votes.map { vote =>
         Json.obj(
           "missionLeader" := vote.missionLeader,
-        "success" := vote.votes.filter(_.vote === TeamVote(true)).map(_.nickname),
-        "fail" := vote.votes.filter(_.vote === TeamVote(false)).map(_.nickname))
+        "successVotes" := vote.votes.filter(_.vote === TeamVote(true)).map(_.nickname),
+        "failVotes" := vote.votes.filter(_.vote === TeamVote(false)).map(_.nickname))
       })
   }
 
