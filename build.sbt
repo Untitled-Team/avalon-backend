@@ -74,3 +74,9 @@ dockerfile in docker := {
     expose(8000, 80)
   }
 }
+
+// Set a custom image name
+imageNames in docker := {
+  val imageName = ImageName("tbrown1979/avalon-game")
+  Seq(imageName, imageName.copy(tag = Some("latest")))
+}
