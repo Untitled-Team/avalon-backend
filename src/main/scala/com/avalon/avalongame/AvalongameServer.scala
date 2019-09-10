@@ -29,7 +29,7 @@ object AvalongameServer {
       // Can also be done via a Router if you
       // want to extract a segments not checked
       // in the underlying routes.
-      httpApp = AvalongameRoutes.testRoutessss[F](eventManager)
+      httpApp = AvalongameRoutes.gameRoutesWS[F](eventManager)
         .orNotFound
 //        AvalongameRoutes.helloWorldRoutes[F](helloWorldAlg) <+>
 //        AvalongameRoutes.jokeRoutes[F](jokeAlg) <+>

@@ -21,6 +21,7 @@ case class PlayerNotPartOfQuest(nickname: Nickname) extends RuntimeException wit
 case class PlayerCantVoteMoreThanOnce(nickname: Nickname) extends RuntimeException with NoStackTrace
 case object GameHasStarted extends RuntimeException with NoStackTrace
 case class NicknameAlreadyInUse(nickname: Nickname) extends RuntimeException with NoStackTrace
+case class UserIsntInGame(nickname: Nickname) extends RuntimeException with NoStackTrace
 case class InvalidStateTransition(gameState: GameState, to: String, nickname: Nickname) extends RuntimeException with NoStackTrace
 case class UserNotMissionLeader(nickname: Nickname) extends RuntimeException with NoStackTrace
 case class InvalidUserCountForMission(n: Int) extends RuntimeException with NoStackTrace

@@ -91,6 +91,84 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
     }
   }
 
+  "removePlayer" should {
+    "Fail if the player isn't in the room at all" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+
+        val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
+
+        room.players.unsafeRunSync() should be(Nil)
+
+        room.addUser(user1).unsafeRunSync()
+        room.players.unsafeRunSync() should be(List(user1))
+        room.removePlayer(Nickname("Not in room"))
+        room.players.unsafeRunSync() should be(List(user1))
+      }
+    }
+
+    "Fail to remove user when the game has started" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+
+        val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
+
+        room.players.unsafeRunSync() should be(Nil)
+
+        room.addUser(user1).unsafeRunSync()
+        room.addUser(user2).unsafeRunSync()
+        room.addUser(user3).unsafeRunSync()
+        room.addUser(user4).unsafeRunSync()
+        room.addUser(user5).unsafeRunSync()
+
+        room.players.unsafeRunSync() should contain allOf(user1, user2, user3, user4, user5)
+
+        room.startGame.unsafeRunSync()
+
+        room.removePlayer(user1).attempt.unsafeRunSync() should be(Left(GameHasStarted))
+      }
+    }
+
+    "Properly remove users" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+
+        val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
+
+        room.players.unsafeRunSync() should be(Nil)
+
+        room.addUser(user1).unsafeRunSync()
+        room.addUser(user2).unsafeRunSync()
+        room.addUser(user3).unsafeRunSync()
+        room.addUser(user4).unsafeRunSync()
+        room.addUser(user5).unsafeRunSync()
+
+        room.players.unsafeRunSync() should contain allOf(user1, user2, user3, user4, user5)
+
+        room.removePlayer(user1).unsafeRunSync()
+        room.removePlayer(user2).unsafeRunSync()
+        room.removePlayer(user3).unsafeRunSync()
+        room.removePlayer(user4).unsafeRunSync()
+        room.removePlayer(user5).unsafeRunSync()
+
+        room.players.unsafeRunSync() should be(Nil)
+      }
+    }
+  }
+
   "startGame" should {
     "Fail when we try to start a game with fewer than 5 players" in {
       forAll { (roomId: RoomId, config: GameConfig) =>

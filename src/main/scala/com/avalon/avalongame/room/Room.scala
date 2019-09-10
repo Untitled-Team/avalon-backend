@@ -14,6 +14,7 @@ case class AllReady(missionNumber: Int, missionLeader: Nickname, missions: Missi
 trait Room[F[_]] {
   def players: F[List[Nickname]]
   def addUser(player: Nickname): F[Unit]
+  def removePlayer(player: Nickname): F[Unit]
   def startGame: F[AllPlayerRoles]
   def playerReady(nickname: Nickname): F[PlayerReadyEnum]
   def proposeMission(nickname: Nickname, users: List[Nickname]): F[MissionProposal]
@@ -40,7 +41,17 @@ object Room {
             else if(room.gameRepresentation.nonEmpty)
               mvar.put(room) >> F.raiseError(GameHasStarted)
             else
-              mvar.put(room.copy(room.players :+ player))
+              mvar.put(room.copy(players = room.players :+ player))
+          }
+
+        def removePlayer(player: Nickname): F[Unit] =
+          mvar.take.flatMap { room =>
+            if(room.gameRepresentation.nonEmpty)
+              mvar.put(room) >> F.raiseError(GameHasStarted)
+            else if (!room.players.contains(player))
+              mvar.put(room) >> F.raiseError(UserIsntInGame(player))
+            else
+              mvar.put(room.copy(players = room.players.filter(_ =!= player)))
           }
 
         def startGame: F[AllPlayerRoles] =

@@ -1,5 +1,6 @@
 package com.avalon.avalongame
 
+import cats.effect.ExitCase.Canceled
 import cats.effect.{Concurrent, Sync, Timer}
 import cats.implicits._
 import com.avalon.avalongame.events._
@@ -17,7 +18,7 @@ import scala.concurrent.duration._
 
 object AvalongameRoutes {
 
-  def testRoutessss[F[_]: Concurrent : Timer](eventManager: EventManager[F]): HttpRoutes[F] = {
+  def gameRoutesWS[F[_] : Timer](eventManager: EventManager[F])(implicit F: Concurrent[F]): HttpRoutes[F] = {
     val dsl = new Http4sDsl[F]{}
     import dsl._
 
@@ -27,16 +28,16 @@ object AvalongameRoutes {
           WebSocketBuilder[F].build(
             q.dequeue.map(event => Text(OutgoingEventEncoder.encoder.apply(event).show)),
             events => {
-              val eventsStream: Stream[F, IncomingEvent] = events.evalMap { wsf =>
-                for {
-                  parsedJson <- Sync[F].fromEither(parse(Text(wsf.data).str))
-                  decodedEvent <- Sync[F].fromEither(IncomingEventDecoder.decoder.decodeJson(parsedJson))
-                } yield decodedEvent
-              }
+              val eventsStream: Stream[F, IncomingEvent] =
+                events.flatMap { wsf =>
+                  (for {
+                    parsedJson <- Stream.eval(Sync[F].fromEither(parse(Text(wsf.data).str)))
+                    decodedEvent <- Stream.eval(Sync[F].fromEither(IncomingEventDecoder.decoder.decodeJson(parsedJson)))
+                  } yield decodedEvent)
+                    .handleErrorWith(t => Stream.eval(F.delay(println(s"Failed to decode incoming event: $t"))) >> Stream.empty)
+                }
 
-              Stream.eval(eventManager.interpret(q, eventsStream)).handleErrorWith { _ =>
-                Stream.eval(Concurrent[F].delay(println("Failed to decode incoming event")))
-              }
+              Stream.eval(eventManager.interpret(q, eventsStream))
             }
           )
         }

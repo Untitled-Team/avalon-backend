@@ -1,7 +1,8 @@
 package com.avalon.avalongame.events
 
-import cats.effect.concurrent.Ref
+import cats.effect.concurrent.{MVar, Ref}
 import cats.effect.{ContextShift, IO, Timer}
+import cats.implicits._
 import com.avalon.avalongame.RandomAlg
 import com.avalon.avalongame.common._
 import com.avalon.avalongame.room._
@@ -197,6 +198,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
               def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
               def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] = ???
+              def removePlayer(player: Nickname): IO[Unit] = ???
             }
           }
         }
@@ -247,6 +249,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
               def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
               def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] = ???
+              def removePlayer(player: Nickname): IO[Unit] = ???
             }
           }
         }
@@ -300,6 +303,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
               def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
               def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] = ???
+              def removePlayer(player: Nickname): IO[Unit] = ???
             }
           }
         }
@@ -353,6 +357,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
               def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
               def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] = ???
+              def removePlayer(player: Nickname): IO[Unit] = ???
             }
           }
         }
@@ -407,6 +412,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
               def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
               def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] = ???
+              def removePlayer(player: Nickname): IO[Unit] = ???
             }
           }
         }
@@ -461,6 +467,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
                 IO.pure(FinishedVote(List(QuestVote(true), QuestVote(false))))
               def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
               def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] = ???
+              def removePlayer(player: Nickname): IO[Unit] = ???
             }
           }
         }
@@ -514,6 +521,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
               def questResultsSeen(nickname: Nickname): IO[AfterQuest] = IO.pure(AssassinVote(nickname1, Nil))
               def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] = ???
+              def removePlayer(player: Nickname): IO[Unit] = ???
             }
           }
         }
@@ -569,6 +577,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               def questResultsSeen(nickname: Nickname): IO[AfterQuest] =
                 IO.pure(BadGuyVictory(BadPlayerRole(nickname1, Assassin), None, GoodPlayerRole(nickname2, Merlin), Nil, Nil, BadGuys))
               def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] = ???
+              def removePlayer(player: Nickname): IO[Unit] = ???
             }
           }
         }
@@ -624,6 +633,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               def questResultsSeen(nickname: Nickname): IO[AfterQuest] =
                 IO.pure(GameContinues(nickname1, 2, missions))
               def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] = ???
+              def removePlayer(player: Nickname): IO[Unit] = ???
             }
           }
         }
@@ -679,6 +689,7 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
               def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
               def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] =
                 IO.pure(GameOver(BadPlayerRole(nickname1, Assassin), None, GoodPlayerRole(nickname2, Merlin), Nil, Nil, BadGuys))
+              def removePlayer(player: Nickname): IO[Unit] = ???
             }
           }
         }
@@ -699,6 +710,65 @@ class EventManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChe
             Stream.eval(IO.pure(IncomingAssassinVote(nickname1)))).unsafeRunSync()
         sendToAllRef.get.unsafeRunSync() should be(
           Some(GameOverOutgoingEvent(nickname1, None, nickname2, Nil, Nil, BadGuys)))
+      }
+    }
+  }
+
+  test("Make sure we send out ChangeInLobby on Disconnect") {
+    forAll { (roomId: RoomId) =>
+      new context {
+
+        val sendToAllRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+        val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+        val nickname2 = Nickname(java.util.UUID.randomUUID().toString)
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val mockOutgoingManager: OutgoingManager[IO] = new OutgoingManager[IO] {
+          override def add(usernameWithSend: UsernameWithSend[IO]): IO[Unit] = IO.unit
+          override def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = IO.unit
+          override def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] = IO.unit
+          override def sendToAll(event: OutgoingEvent): IO[Unit] = sendToAllRef.set(Some(event))
+          def sendToAllUserSpecific(outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] = IO.unit
+        }
+
+        val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
+          override def create(roomId: RoomId): IO[Unit] = IO.unit
+          override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
+            new Room[IO] {
+              override def players: IO[List[Nickname]] = IO(Nil)
+              override def addUser(player: Nickname): IO[Unit] = IO.unit
+              override def startGame: IO[AllPlayerRoles] = ???
+              override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = ???
+              override def proposeMission(nickname: Nickname, players: List[Nickname]): IO[MissionProposal] = ???
+              def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
+              def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
+              def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
+              def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] =
+                IO.pure(GameOver(BadPlayerRole(nickname1, Assassin), None, GoodPlayerRole(nickname2, Merlin), Nil, Nil, BadGuys))
+              def removePlayer(player: Nickname): IO[Unit] = IO.unit
+            }
+          }
+        }
+
+        override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
+          override def generate: IO[RoomId] = IO.pure(roomId)
+        }
+
+        val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
+
+
+        val eventManager: EventManager[IO] = EventManager.buildOutgoing[IO](mockRoomManager, mockRoomIdGenerator, outgoingRef)
+        val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
+
+        val mvar: MVar[IO, Unit] = MVar.empty[IO, Unit].unsafeRunSync()
+
+        val fiber = eventManager.interpret(
+          userQueue,
+          Stream.eval(IO.pure(JoinGame(nickname1, roomId))) ++ Stream.eval(mvar.put(())).flatMap(_ => Stream.never[IO])).start.unsafeRunSync()
+
+        mvar.take.timeout(1 second).flatMap(_ => fiber.cancel).unsafeRunSync()
+
+        sendToAllRef.get.unsafeRunSync() should be(Some(ChangeInLobby(Nil)))
       }
     }
   }

@@ -60,6 +60,7 @@ object IncomingEventDecoder {
         case "QuestVote"            => QuestVoteEvent.decoder.decodeJson(hcursor.value)
         case "QuestVotesDisplayed"  => Right(QuestVotesDisplayed)
         case "AssassinVote"         => IncomingAssassinVote.decoder.decodeJson(hcursor.value)
+        case e                      => Left(DecodingFailure(s"Invalid IncomingEvent event found: $e", hcursor.history))
       }
     } yield decoded
   }
