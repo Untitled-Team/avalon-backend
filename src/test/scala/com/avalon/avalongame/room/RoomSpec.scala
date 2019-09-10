@@ -7,6 +7,7 @@ import com.mrdziuban.ScalacheckMagnolia._
 import org.scalatest.{FunSuite, Matchers, WordSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import Room._
+import cats.Eq
 import cats.effect.concurrent.MVar
 
 class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with enumeratum.ScalacheckInstances {
@@ -16,8 +17,8 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
   val mockRandomAlg: RandomAlg[IO] = new RandomAlg[IO] {
     override def shuffle[A](l: List[A]): IO[List[A]] = IO.pure(l)
-
     override def randomGet[A](l: List[A]): IO[A] = IO(l.head) //oops
+    override def clockwise[A: Eq](previous: A, l: List[A]): IO[A] = IO(l.head)
   }
 
   "addUser" should {
@@ -501,7 +502,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         result2 should be(TeamPhaseStillVoting)
         result3 should be(TeamPhaseStillVoting)
         result4 should be(TeamPhaseStillVoting)
-        result5 should be(FailedVote(user2, 1, votes, missionsAfterVotes))
+        result5 should be(FailedVote(user1, 1, votes, missionsAfterVotes))
       }
     }
 
@@ -601,7 +602,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         result3 should be(TeamPhaseStillVoting)
         result4 should be(TeamPhaseStillVoting)
         result5 should be(TeamPhaseStillVoting)
-        result6 should be(FailedVote(user2, 1, votes, missionsAfterVotes))
+        result6 should be(FailedVote(user1, 1, votes, missionsAfterVotes))
       }
     }
 
@@ -652,18 +653,16 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         result3 should be(TeamPhaseStillVoting)
         result4 should be(TeamPhaseStillVoting)
         result5 should be(TeamPhaseStillVoting)
-        result6 should be(FailedVote(user2, 1, votes, missionsAfterVotes))
+        result6 should be(FailedVote(user1, 1, votes, missionsAfterVotes))
 
-        val proposal = room.proposeMission(user2, users.take(2)).attempt.unsafeRunSync()
+        val proposal = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
 
-        proposal should be(Right(MissionProposal(1, user2, users.take(2))))
+        proposal should be(Right(MissionProposal(1, user1, users.take(2))))
       }
     }
   }
 
   "quest vote" should {
-    //good person can't cast a false vote
-
     "fail if someone who isn't a quester tries to vote" in {
       forAll { (roomId: RoomId, config: GameConfig) =>
 
@@ -1072,11 +1071,11 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           room.questResultsSeen(user2).unsafeRunSync() should be(StillViewingQuestResults)
           room.questResultsSeen(user3).unsafeRunSync() should be(StillViewingQuestResults)
           room.questResultsSeen(user4).unsafeRunSync() should be(StillViewingQuestResults)
-          room.questResultsSeen(user5).unsafeRunSync() should be(GameContinues(user2, 1, missions))
+          room.questResultsSeen(user5).unsafeRunSync() should be(GameContinues(user1, 1, missions))
 
           val repr = mvar.read.unsafeRunSync().gameRepresentation.get
 
-          repr.state should be(MissionProposing(1, user2))
+          repr.state should be(MissionProposing(1, user1))
         }
       }
 
@@ -1115,11 +1114,11 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           room.questResultsSeen(user2).unsafeRunSync() should be(StillViewingQuestResults)
           room.questResultsSeen(user3).unsafeRunSync() should be(StillViewingQuestResults)
           room.questResultsSeen(user4).unsafeRunSync() should be(StillViewingQuestResults)
-          room.questResultsSeen(user5).unsafeRunSync() should be(GameContinues(user2, 3, missions))
+          room.questResultsSeen(user5).unsafeRunSync() should be(GameContinues(user1, 3, missions))
 
           val repr = mvar.read.unsafeRunSync().gameRepresentation.get
 
-          repr.state should be(MissionProposing(3, user2))
+          repr.state should be(MissionProposing(3, user1))
         }
       }
     }

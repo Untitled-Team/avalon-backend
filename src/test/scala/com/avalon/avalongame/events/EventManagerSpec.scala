@@ -1,5 +1,6 @@
 package com.avalon.avalongame.events
 
+import cats.Eq
 import cats.effect.concurrent.{MVar, Ref}
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
@@ -153,7 +154,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             override def add(nickname: Nickname, respond: Queue[IO, OutgoingEvent]): IO[Unit] = IO.unit
             override def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = broadcastRef.set(Some(outgoingEvent))
           }
-          
+
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
             override def create(roomId: RoomId): IO[Unit] = IO.unit
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
@@ -728,8 +729,8 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
 
     val mockRandomAlg: RandomAlg[IO] = new RandomAlg[IO] {
       override def shuffle[A](l: List[A]): IO[List[A]] = IO.pure(l)
-
       override def randomGet[A](l: List[A]): IO[A] = IO(l.head) //oops
+      override def clockwise[A: Eq](previous: A, l: List[A]): IO[A] = IO(l.head)
     }
 
     val roomManager: RoomManager[IO] = RoomManager.build[IO](mockRandomAlg).unsafeRunSync()

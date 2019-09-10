@@ -81,7 +81,7 @@ object Room {
               enum <-
                 if (updatedState.playersReady.size === room.players.size)
                   (for {
-                    missionLeader <- randomAlg.randomGet(room.players)
+                    missionLeader <- F.fromOption(room.players.headOption, NotEnoughPlayers(room.players.size))
                     updatedRepr   =  repr.copy(state = MissionProposing(1, missionLeader))
                     _             <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
                   } yield AllReady(1, missionLeader, repr.missions)).widen[PlayerReadyEnum]
@@ -147,7 +147,7 @@ object Room {
                     (for {
                       updatedMissions <- F.fromEither(
                         Missions.addFinishedTeamVote(repr.missions, proposal.missionNumber, proposal.missionLeader, updatedState.votes))
-                      newMissionLeader <- randomAlg.randomGet(room.players.filter(_ =!= proposal.missionLeader))
+                      newMissionLeader <- randomAlg.clockwise(proposal.missionLeader, room.players)
                     } yield FailedVote(newMissionLeader, proposal.missionNumber, updatedState.votes, updatedMissions)).widen[TeamVoteEnum]
 
                   else F.pure(SuccessfulVote(updatedState.votes)).widen[TeamVoteEnum]
@@ -248,7 +248,7 @@ object Room {
                   updatedState.info match {
                     case NextMission(previousLeader) =>
                       (for {
-                        nextMissionLeader <- randomAlg.randomGet(room.players.filter(_ =!= previousLeader))
+                        nextMissionLeader <- randomAlg.clockwise(previousLeader, room.players)
                         currentMission <- F.fromEither[Mission](Missions.currentMission(repr.missions))
                       } yield
                         (GameContinues(nextMissionLeader, currentMission.number, repr.missions),

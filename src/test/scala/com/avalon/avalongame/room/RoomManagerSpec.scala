@@ -1,5 +1,6 @@
 package com.avalon.avalongame.room
 
+import cats.Eq
 import cats.effect.{ContextShift, IO}
 import com.avalon.avalongame.common._
 import com.avalon.avalongame.RandomAlg
@@ -13,8 +14,8 @@ class RoomManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChec
 
   val mockRandomAlg: RandomAlg[IO] = new RandomAlg[IO] {
     override def shuffle[A](l: List[A]): IO[List[A]] = IO.pure(l)
-
     override def randomGet[A](l: List[A]): IO[A] = IO(l.head) //oops
+    override def clockwise[A: Eq](previous: A, l: List[A]): IO[A] = IO(l.head)
   }
 
   test("Create and update the room manager, alongside some room tests") {
