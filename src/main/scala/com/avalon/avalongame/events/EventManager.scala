@@ -185,20 +185,22 @@ object EventManager {
                   }
               }}.handleErrorWith(t => F.delay(println(t)))
             }.onFinalizeCase { //disconnected
-              case ExitCase.Canceled =>
+              //if they are in the lobby we should remove them from room and then remove them from the OutgoingManager
+              //if they in a game we should remove their Responder and hopefully they will join back
+              case ExitCase.Canceled => F.delay(println("CANCELED")) >>
                 (for {
                   ctx      <- context.get.flatMap(c => F.fromOption(c, NoContext))
                   room     <- roomManager.get(ctx.roomId)
                   _        <- room.removePlayer(ctx.nickname)
                   players  <- room.players
-                  mapping  <- outgoingRef.get
+                  mapping  <- outgoingRef.get//also need to remove the responder from the outgoing, but leave the username in case they reocnnect!
                   outgoing <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
                   _        <- outgoing.sendToAll(ChangeInLobby(players))
                   _        <- context.update(_ => None)
                 } yield ()).onError {
                   case t => Sync[F].delay(println(s"We encountered an error while disconnecting player,  ${t.getStackTrace}"))
                 }
-              case _ => F.unit
+              case _ => F.delay(println("NOT CANCEL"))
             }
           }.compile.drain
     }
