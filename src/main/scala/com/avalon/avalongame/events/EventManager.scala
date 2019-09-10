@@ -39,6 +39,7 @@ object EventManager {
               event match {
                 case CreateGame(nickname) => //can't do this if ConnectionContext exists
                   (for {
+                    _        <- context.get.flatMap(c => if (c.isEmpty) F.unit else F.raiseError[Unit](ContextExistsAlready))//tests
                     roomId   <- roomIdGenerator.generate
                     _        <- roomManager.create(roomId)
                     room     <- roomManager.get(roomId)
@@ -54,6 +55,7 @@ object EventManager {
 
                 case JoinGame(nickname, roomId) => //can't do this if ConnectionContext exists
                   (for {
+                    _        <- context.get.flatMap(c => if (c.isEmpty) F.unit else F.raiseError[Unit](ContextExistsAlready))//tests
                     room     <- roomManager.get(roomId)
                     _        <- room.addUser(nickname)
                     players  <- room.players

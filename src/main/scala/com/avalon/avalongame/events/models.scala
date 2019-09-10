@@ -16,4 +16,5 @@ object CharacterRole {
     }
 }
 
+case object ContextExistsAlready extends RuntimeException with NoStackTrace
 case class NoRoleForNickname(nickname: Nickname) extends RuntimeException with NoStackTrace
