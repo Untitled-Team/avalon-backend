@@ -14,7 +14,7 @@ import fs2.concurrent.Queue
 
 import scala.util.control.NoStackTrace
 
-case class UsernameWithSend[F[_]](nickname: Nickname, respond: Queue[F, OutgoingEvent])
+case class NicknameWithRespond[F[_]](nickname: Nickname, respond: Queue[F, OutgoingEvent])
 
 trait EventManager[F[_]] {
   def interpret(respond: Queue[F, OutgoingEvent], events: Stream[F, IncomingEvent]): F[Unit]
@@ -82,7 +82,7 @@ object EventManager {
           _        <- roomManager.create(roomId)
           room     <- roomManager.get(roomId)
           _        <- room.addUser(nickname)
-          outgoing <- OutgoingManager.build[F](UsernameWithSend[F](nickname, respond))
+          outgoing <- OutgoingManager.build[F](NicknameWithRespond[F](nickname, respond))
           _        <- outgoingRef.update(_ + (roomId -> outgoing))
           _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
           players  <- room.players
@@ -237,12 +237,13 @@ trait OutgoingManager[F[_]] {
 }
 
 //needs tests to make sure it properly sends out the messages
+
 object OutgoingManager {
-  def build[F[_]: Par](usernameWithSend: UsernameWithSend[F])(implicit F: Concurrent[F]): F[OutgoingManager[F]] =
-    Ref.of[F, List[UsernameWithSend[F]]](List(usernameWithSend)).map { ref =>
+  def build[F[_]: Par](usernameWithSend: NicknameWithRespond[F])(implicit F: Concurrent[F]): F[OutgoingManager[F]] =
+    Ref.of[F, List[NicknameWithRespond[F]]](List(usernameWithSend)).map { ref =>
       new OutgoingManager[F] {
         def add(nickname: Nickname, respond: Queue[F, OutgoingEvent]): F[Unit] =
-          ref.update(UsernameWithSend(nickname, respond) :: _)
+          ref.update(NicknameWithRespond(nickname, respond) :: _)
 
         def remove(nickname: Nickname): F[Unit] =
           ref.update(_.filter(_.nickname =!= nickname))

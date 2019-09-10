@@ -25,6 +25,5 @@ object RandomAlg {
       val nextValue = l.dropWhile(_ =!= previous).drop(1).headOption orElse l.headOption
       F.fromOption(nextValue, EmptyListFound)
     }
-//      F.fromOption(l.dropWhile(_ =!= previous).drop(1).headOption orElse l.headOption
   }
 }
