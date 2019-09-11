@@ -4,7 +4,7 @@ import java.io.{PrintWriter, StringWriter}
 
 import cats.implicits._
 import cats.effect._
-import cats.effect.concurrent.Ref
+import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect.implicits._
 import cats.temp.par._
 import com.avalon.avalongame.common._
@@ -14,7 +14,7 @@ import fs2.concurrent.Queue
 
 import scala.util.control.NoStackTrace
 
-case class NicknameWithRespond[F[_]](nickname: Nickname, respond: Queue[F, OutgoingEvent])
+case class OutgoingConnectionContext[F[_]](nickname: Nickname, respond: Queue[F, OutgoingEvent], events: List[OutgoingEvent])
 
 trait EventManager[F[_]] {
   def interpret(respond: Queue[F, OutgoingEvent], events: Stream[F, IncomingEvent]): F[Unit]
@@ -36,7 +36,10 @@ object EventManager {
         def interpret(respond: Queue[F, OutgoingEvent], events: Stream[F, IncomingEvent]): F[Unit] =
           Stream.eval(Ref.of[F, Option[ConnectionContext]](None)).flatMap { context =>
             events
-              .evalMap(handleEvent(_, respond, roomManager, roomIdGenerator, outgoingRef, context))
+              .evalMap {
+                handleEvent(_, respond, roomManager, roomIdGenerator, outgoingRef, context)
+                  .handleErrorWith(t => F.delay(println(s"We encountered an error while trying to handle the incomiing event:$t")))
+              }
               .onFinalize { //disconnected
                 //if they are in the lobby we should remove them from room and then remove them from the OutgoingManager
                 //if they in a game we should remove their Responder and hopefully they will join back
@@ -82,11 +85,11 @@ object EventManager {
           _        <- roomManager.create(roomId)
           room     <- roomManager.get(roomId)
           _        <- room.addUser(nickname)
-          outgoing <- OutgoingManager.build[F](NicknameWithRespond[F](nickname, respond))
+          outgoing <- OutgoingManager.build[F](OutgoingConnectionContext[F](nickname, respond, Nil))
           _        <- outgoingRef.update(_ + (roomId -> outgoing))
           _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
           players  <- room.players
-          _        <- respond.enqueue1(MoveToLobby(roomId, players))
+          _        <- outgoing.send(nickname, MoveToLobby(roomId, players))
         } yield ()).onError {
           case t => Sync[F].delay(println(s"We encountered an error while creating game for $nickname,  ${t.getStackTrace}"))
         }
@@ -102,7 +105,7 @@ object EventManager {
           _        <- outgoing.broadcast(nickname, ChangeInLobby(players))
           _        <- outgoing.add(nickname, respond)
           _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
-          _        <- respond.enqueue1(MoveToLobby(roomId, players))
+          _        <- outgoing.send(nickname, MoveToLobby(roomId, players))
         } yield ()).onError {
           case t => Sync[F].delay(println(s"We encountered an error while joining game for $nickname,  $t"))
         }
@@ -228,6 +231,7 @@ object EventManager {
 trait OutgoingManager[F[_]] {
   def add(nickname: Nickname, respond: Queue[F, OutgoingEvent]): F[Unit]
   def remove(nickname: Nickname): F[Unit]
+  def send(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit]
 //  def removeRespond(nickname: Nickname): F[Unit]
   //broadcasts message to everyone but the nickname provided
   def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit]
@@ -239,29 +243,62 @@ trait OutgoingManager[F[_]] {
 //needs tests to make sure it properly sends out the messages
 
 object OutgoingManager {
-  def build[F[_]: Par](usernameWithSend: NicknameWithRespond[F])(implicit F: Concurrent[F]): F[OutgoingManager[F]] =
-    Ref.of[F, List[NicknameWithRespond[F]]](List(usernameWithSend)).map { ref =>
-      new OutgoingManager[F] {
-        def add(nickname: Nickname, respond: Queue[F, OutgoingEvent]): F[Unit] =
-          ref.update(NicknameWithRespond(nickname, respond) :: _)
+  private[events] def buildPrivate[F[_]: Par](usernameWithSend: OutgoingConnectionContext[F],
+                                              sem: Semaphore[F],
+                                              ref: Ref[F, List[OutgoingConnectionContext[F]]])(implicit F: Concurrent[F]): OutgoingManager[F] =
+    new OutgoingManager[F] {
+      def add(nickname: Nickname, respond: Queue[F, OutgoingEvent]): F[Unit] =
+        sem.withPermit(ref.update(OutgoingConnectionContext(nickname, respond, Nil) :: _))
 
-        def remove(nickname: Nickname): F[Unit] =
-          ref.update(_.filter(_.nickname =!= nickname))
+      def remove(nickname: Nickname): F[Unit] =
+        sem.withPermit(ref.update(_.filter(_.nickname =!= nickname)))
+
+      def send(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit] =
+        sem.withPermit {
+          for {
+            connections <- ref.get
+            c <- F.fromOption(connections.find(_.nickname === nickname), NoOutgoingEventContextExistsForUser(nickname))
+            _ <- ref.update(_.map(ctx => if (ctx.nickname === nickname) ctx.copy(events = outgoingEvent :: ctx.events) else ctx))
+            _ <- c.respond.enqueue1(outgoingEvent)
+          } yield ()
+        }
 
 //        def removeRespond(nickname: Nickname): F[Unit]
 
-        def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit] =
-          broadcastUserSpecific(nickname, _ => F.pure(outgoingEvent))
+      def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit] =
+        broadcastUserSpecific(nickname, _ => F.pure(outgoingEvent))
 
-        def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => F[OutgoingEvent]): F[Unit] =
-          ref.get.flatMap { l =>
-            l.filter(_.nickname =!= nickname).parTraverse(u => outgoingF(u.nickname).flatMap(u.respond.enqueue1))
-          }.void
+      def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => F[OutgoingEvent]): F[Unit] =
+        sem.withPermit {
+          for {
+            l <- ref.get
+            _ <- l.filter(_.nickname =!= nickname).parTraverse { u =>
+              outgoingF(u.nickname)
+                .flatTap(u.respond.enqueue1)
+                .flatTap { outgoingEvent =>
+                  ref.update(_.map(ctx => if (u.nickname === ctx.nickname) ctx.copy(events = outgoingEvent :: ctx.events) else ctx))
+                }
+            }
+          } yield ()
+        }
 
-        def sendToAll(event: OutgoingEvent): F[Unit] = sendToAllUserSpecific(_ => F.pure(event))
+      def sendToAll(event: OutgoingEvent): F[Unit] = sendToAllUserSpecific(_ => F.pure(event))
 
-        def sendToAllUserSpecific(outgoingF: Nickname => F[OutgoingEvent]): F[Unit] =
-          ref.get.flatMap(_.parTraverse(u => outgoingF(u.nickname).flatMap(event => u.respond.enqueue1(event))).void)
+      def sendToAllUserSpecific(outgoingF: Nickname => F[OutgoingEvent]): F[Unit] =
+        sem.withPermit {
+          ref.get.flatMap(_.parTraverse_ { u =>
+            outgoingF(u.nickname)
+              .flatTap(event => u.respond.enqueue1(event))
+              .flatTap(event => ref.update(_.map(ctx => if (ctx.nickname === u.nickname) ctx.copy(events = event :: ctx.events) else ctx)))
+          })
+        }
+    }
+
+  //don't really need to provide the usernameWithSend when we build. Would make mocking easier if we don't
+  def build[F[_]: Par](usernameWithSend: OutgoingConnectionContext[F])(implicit F: Concurrent[F]): F[OutgoingManager[F]] =
+    Semaphore[F](1).flatMap { sem =>
+      Ref.of[F, List[OutgoingConnectionContext[F]]](List(usernameWithSend)).map { ref =>
+        buildPrivate(usernameWithSend, sem, ref)
       }
     }
 }
