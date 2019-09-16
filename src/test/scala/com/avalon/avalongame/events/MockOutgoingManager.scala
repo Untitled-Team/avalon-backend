@@ -7,6 +7,8 @@ import fs2.concurrent.Queue
 class MockOutgoingManager extends OutgoingManager[IO] {
   override def add(nickname: Nickname, respond: Queue[IO, OutgoingEvent]): IO[Unit] = ???
   override def remove(nickname: Nickname): IO[Unit] = ???
+  override def disconnected(nickname: Nickname): IO[Unit] = ???
+  override def reconnect(nickname: Nickname, respond: Queue[IO, OutgoingEvent]): IO[Unit] = ???
   override def send(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = ???
   override def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = ???
   override def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] = ???

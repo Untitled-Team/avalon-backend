@@ -59,13 +59,8 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
     "successfully respond with MoveToLobby when the game is created" in {
       forAll { (roomId: RoomId, gameConfig: GameConfig) =>
         new context {
-
-          val sendRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+          
           val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
-
-          val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager {
-            override def send(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = sendRef.set(Some(outgoingEvent))
-          }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
             override def create(roomId: RoomId): IO[Unit] = IO.unit
@@ -95,7 +90,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).attempt.unsafeRunSync()
 
-          userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(MoveToLobby(roomId, mockRoom.players.unsafeRunSync()))
+          userQueue.tryDequeue1.unsafeRunSync() should be(Some(MoveToLobby(roomId, mockRoom.players.unsafeRunSync())))
         }
       }
     }
