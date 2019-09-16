@@ -41,26 +41,16 @@ object EventManager {
             events
               .evalMap {
                 handleEvent(_, respond, roomManager, roomIdGenerator, outgoingRef, context)
-                  .handleErrorWith(t => F.delay(println(s"We encountered an error while trying to handle the incomiing event:$t")))
+                  .handleErrorWith(t => F.delay(println(s"We encountered an error while trying to handle the incoming event:$t")))
               }
               .onFinalize { //disconnected
                 //if they are in the lobby we should remove them from room and then remove them from the OutgoingManager
                 //if they in a game we should remove their Responder and hopefully they will join back
                   (for {
                     ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
-                    room          <- roomManager.get(ctx.roomId)
                     mapping       <- outgoingRef.get//also need to remove the responder from the outgoing, but leave the username in case they reocnnect!
                     outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-                    removeAttmept <- room.removePlayer(ctx.nickname).attempt
-                    _ <- removeAttmept match {
-                      case Right(_) => outgoing.remove(ctx.nickname)
-                      case Left(GameHasStarted) => F.unit
-                      case Left(_)  => outgoing.remove(ctx.nickname)
-                    }
-                    players  <- room.players
-
-                    _        <- outgoing.sendToAll(ChangeInLobby(players))
-                    _        <- context.update(_ => None)
+                    _             <- outgoing.disconnected(ctx.nickname)
                   } yield ()).onError {
                     case t => Sync[F].delay(println(s"We encountered an error while disconnecting player,  ${t.getStackTrace}"))
                   }
@@ -128,6 +118,19 @@ object EventManager {
           _        <- context.update(_ => None)
         } yield ()).onError {
           case t => Sync[F].delay(println(s"We encountered an error while disconnecting player,  ${t.getStackTrace}"))
+        }
+
+      case Reconnect(nickname, roomId) =>
+        (for {
+          _        <- context.get.flatMap(c => if (c.isEmpty) F.unit else F.raiseError[Unit](ContextExistsAlready))//tests
+          room     <- roomManager.get(roomId)
+          _        <- room.players.ensure(NicknameNotFoundInRoom(nickname))(_.contains(nickname))
+          mapping  <- outgoingRef.get
+          outgoing <- Sync[F].fromOption(mapping.get(roomId), NoRoomFoundForChatId)
+          _        <- outgoing.reconnect(nickname, respond)
+          _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
+        } yield ()).onError {
+          case t => Sync[F].delay(println(s"We encountered an error while creating game for $nickname,  ${t.getStackTrace}"))
         }
 
       case StartGame =>

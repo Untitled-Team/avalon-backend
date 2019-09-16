@@ -16,6 +16,7 @@ object CharacterRole {
     }
 }
 
+case class NicknameNotFoundInRoom(nickname: Nickname) extends RuntimeException with NoStackTrace
 case object ContextExistsAlready extends RuntimeException with NoStackTrace
 case class NoRoleForNickname(nickname: Nickname) extends RuntimeException with NoStackTrace
 case class NoOutgoingEventContextExistsForUser(nickname: Nickname) extends RuntimeException with NoStackTrace

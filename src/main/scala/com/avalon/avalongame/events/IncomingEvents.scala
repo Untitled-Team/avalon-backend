@@ -21,6 +21,11 @@ object JoinGame {
 
 case object LeaveGame extends IncomingEvent
 
+case class Reconnect(nickname: Nickname, roomId: RoomId) extends IncomingEvent
+object Reconnect {
+  implicit val decoder: Decoder[Reconnect] = deriveDecoder
+}
+
 case object StartGame extends IncomingEvent
 
 case object PlayerReady extends IncomingEvent
@@ -56,6 +61,7 @@ object IncomingEventDecoder {
         case "CreateGame"           => CreateGame.decoder.decodeJson(hcursor.value)
         case "JoinGame"             => JoinGame.decoder.decodeJson(hcursor.value)
         case "LeaveGame"            => Right(LeaveGame)
+        case "Reconnect"            => Reconnect.decoder.decodeJson(hcursor.value)
         case "StartGame"            => Right(StartGame)
         case "PlayerReady"          => Right(PlayerReady)
         case "ProposeParty"         => ProposeParty.decoder.decodeJson(hcursor.value)
