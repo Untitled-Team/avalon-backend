@@ -21,6 +21,8 @@ object ChangeInLobby {
   implicit val encoder: Encoder[ChangeInLobby] = deriveEncoder
 }
 
+case object GameLeft extends OutgoingEvent
+
 case class PlayerInfo(character: Role, badGuys: Option[List[BadPlayerRole]]) extends OutgoingEvent
 
 object PlayerInfo {
@@ -79,6 +81,7 @@ object OutgoingEventEncoder {
   implicit val encoder: Encoder[OutgoingEvent] = Encoder.instance {
     case g@MoveToLobby(_, _)               => MoveToLobby.encoder.apply(g).deepMerge(Json.obj("event" := "MoveToLobby"))
     case j@ChangeInLobby(_)                => ChangeInLobby.encoder.apply(j).deepMerge(Json.obj("event" := "ChangeInLobby"))
+    case GameLeft                          => Json.obj("event" := "GameLeft")
     case p@PlayerInfo(_, _)                => PlayerInfo.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerInfo"))
     case g@TeamAssignmentPhase(_, _, _)    => TeamAssignmentPhase.encoder.apply(g).deepMerge(Json.obj("event" := "TeamAssignmentPhase"))
     case g@ProposedParty(_)                => ProposedParty.encoder.apply(g).deepMerge(Json.obj("event" := "ProposedParty"))

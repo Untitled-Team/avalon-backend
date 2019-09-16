@@ -46,6 +46,10 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     }
   }
 
+  test("make sure we can encode GameLeft event") {
+    gameLeftJson should be(OutgoingEventEncoder.encoder(GameLeft))
+  }
+
   test("make sure we can encode PlayerInfoEvent event") {
     forAll { playerInfoEvent: PlayerInfo =>
       val json = playerRoleEventJson(playerInfoEvent)
@@ -110,6 +114,10 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "event" := "ChangeInLobby",
       "players" := joinedRoom.players
     )
+
+  val gameLeftJson: Json =
+    Json.obj("event" := "GameLeft")
+
 
   def playerRoleEventJson(playerRoleEvent: PlayerInfo): Json =
     Json.obj(

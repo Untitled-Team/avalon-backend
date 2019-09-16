@@ -19,6 +19,8 @@ object JoinGame {
   implicit val decoder: Decoder[JoinGame] = deriveDecoder
 }
 
+case object LeaveGame extends IncomingEvent
+
 case object StartGame extends IncomingEvent
 
 case object PlayerReady extends IncomingEvent
@@ -53,6 +55,7 @@ object IncomingEventDecoder {
       decoded <- eventName match {
         case "CreateGame"           => CreateGame.decoder.decodeJson(hcursor.value)
         case "JoinGame"             => JoinGame.decoder.decodeJson(hcursor.value)
+        case "LeaveGame"            => Right(LeaveGame)
         case "StartGame"            => Right(StartGame)
         case "PlayerReady"          => Right(PlayerReady)
         case "ProposeParty"         => ProposeParty.decoder.decodeJson(hcursor.value)

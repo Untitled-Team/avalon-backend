@@ -6,6 +6,7 @@ import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
 import com.avalon.avalongame.RandomAlg
 import com.avalon.avalongame.common._
+import com.avalon.avalongame.events.EventManager.NoContext
 import com.avalon.avalongame.room._
 import fs2._
 import fs2.concurrent.Queue
@@ -197,6 +198,153 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
       }
     }
   }
+
+  "LeaveGame" should {
+    "fail when no ConnectionContext exists for the user" in {
+      forAll { (roomId: RoomId, gameConfig: GameConfig) =>
+        new context {
+
+          val broadcastRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+          val outgoingRemoveRef = Ref.of[IO, Option[Unit]](None).unsafeRunSync()
+          val roomRemoveRef = Ref.of[IO, Option[Unit]](None).unsafeRunSync()
+
+          val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+
+          val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager {
+            override def add(nickname: Nickname, respond: Queue[IO, OutgoingEvent]): IO[Unit] = IO.unit
+            override def remove(nickname: Nickname): IO[Unit] = outgoingRemoveRef.set(Some(()))
+            override def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = broadcastRef.set(Some(outgoingEvent))
+          }
+
+          val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
+            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
+              new MockRoom {
+                override def removePlayer(player: Nickname): IO[Unit] = roomRemoveRef.set(Some(()))
+              }
+            }
+          }
+          val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
+
+          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
+            override def generate: IO[RoomId] = IO.pure(roomId)
+          }
+
+          val ctxRef = Ref.of[IO, Option[ConnectionContext]](None).unsafeRunSync()
+          val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
+          val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
+
+          EventManager.handleEvent[IO](
+            LeaveGame,
+            userQueue,
+            mockRoomManager,
+            mockRoomIdGenerator,
+            outgoingRef,
+            ctxRef
+          ).attempt.unsafeRunSync() should be(Left(NoContext))
+        }
+      }
+    }
+
+    "fail when the game has already started" in {
+      forAll { (roomId: RoomId, gameConfig: GameConfig) =>
+        new context {
+
+          val broadcastRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+          val outgoingRemoveRef = Ref.of[IO, Option[Unit]](None).unsafeRunSync()
+
+          val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+
+          val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager {
+            override def add(nickname: Nickname, respond: Queue[IO, OutgoingEvent]): IO[Unit] = IO.unit
+            override def remove(nickname: Nickname): IO[Unit] = outgoingRemoveRef.set(Some(()))
+            override def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = broadcastRef.set(Some(outgoingEvent))
+          }
+
+          val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
+            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
+              new MockRoom {
+                override def removePlayer(player: Nickname): IO[Unit] = IO.raiseError(GameHasStarted)
+              }
+            }
+          }
+          val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
+
+          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
+            override def generate: IO[RoomId] = IO.pure(roomId)
+          }
+
+          val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
+          val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
+          val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
+
+          EventManager.handleEvent[IO](
+            LeaveGame,
+            userQueue,
+            mockRoomManager,
+            mockRoomIdGenerator,
+            outgoingRef,
+            ctxRef
+          ).attempt.unsafeRunSync() should be(Left(GameHasStarted))
+        }
+      }
+    }
+
+    "successfully remove player from room and outgoing manager" in {
+      forAll { (roomId: RoomId, gameConfig: GameConfig) =>
+        new context {
+
+          val sendToAllRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+          val outgoingRemoveRef = Ref.of[IO, Option[Unit]](None).unsafeRunSync()
+          val roomRemoveRef = Ref.of[IO, Option[Unit]](None).unsafeRunSync()
+
+          val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+
+          val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager {
+            override def add(nickname: Nickname, respond: Queue[IO, OutgoingEvent]): IO[Unit] = IO.unit
+            override def remove(nickname: Nickname): IO[Unit] = outgoingRemoveRef.set(Some(()))
+            override def sendToAll(event: OutgoingEvent): IO[Unit] = sendToAllRef.set(Some(event))
+            override def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = ???
+          }
+
+          val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
+            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
+              new MockRoom {
+                override def players: IO[List[Nickname]] = IO.pure(Nil)
+                override def removePlayer(player: Nickname): IO[Unit] = roomRemoveRef.set(Some(()))
+              }
+            }
+          }
+          val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
+
+          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
+            override def generate: IO[RoomId] = IO.pure(roomId)
+          }
+
+          val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
+          val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
+          val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
+
+          EventManager.handleEvent[IO](
+            LeaveGame,
+            userQueue,
+            mockRoomManager,
+            mockRoomIdGenerator,
+            outgoingRef,
+            ctxRef
+          ).unsafeRunSync()
+
+          sendToAllRef.get.unsafeRunSync() should be(Some(ChangeInLobby(Nil)))
+          outgoingRemoveRef.get.unsafeRunSync() should be(Some(()))
+          roomRemoveRef.get.unsafeRunSync() should be(Some(()))
+          userQueue.tryDequeue1.unsafeRunSync() should be(Some(GameLeft))
+        }
+      }
+    }
+  }
+
 
   "StartGame" should {
     "send PlayerInfo messages to _everyone_ when the game is started" in {

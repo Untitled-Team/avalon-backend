@@ -36,6 +36,10 @@ class IncomingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     Right(StartGame) should be(IncomingEventDecoder.decoder.decodeJson(startGameJson))
   }
 
+  test("make sure we can decode LeaveGame event") {
+    Right(LeaveGame) should be(IncomingEventDecoder.decoder.decodeJson(leaveGameJson))
+  }
+
   test("make sure we can decode ProposeParty event") {
     forAll { teamAssignment: ProposeParty =>
       val json = missionLeaderProposalJson(teamAssignment)
@@ -86,6 +90,11 @@ class IncomingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
   val startGameJson: Json =
     Json.obj(
       actionKey := "StartGame",
+    )
+
+  val leaveGameJson: Json =
+    Json.obj(
+      actionKey := "LeaveGame",
     )
 
   def missionLeaderProposalJson(missionLeaderProposal: ProposeParty): Json =

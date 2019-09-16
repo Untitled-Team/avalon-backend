@@ -110,6 +110,22 @@ object EventManager {
           case t => Sync[F].delay(println(s"We encountered an error while joining game for $nickname,  $t"))
         }
 
+      case LeaveGame =>
+        (for {
+          ctx      <- context.get.flatMap(c => F.fromOption(c, NoContext))
+          room     <- roomManager.get(ctx.roomId)
+          mapping  <- outgoingRef.get
+          outgoing <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+          _        <- room.removePlayer(ctx.nickname)
+          _        <- outgoing.remove(ctx.nickname)
+          players  <- room.players
+          _        <- outgoing.sendToAll(ChangeInLobby(players))
+          _        <- respond.enqueue1(GameLeft)
+          _        <- context.update(_ => None)
+        } yield ()).onError {
+          case t => Sync[F].delay(println(s"We encountered an error while disconnecting player,  ${t.getStackTrace}"))
+        }
+
       case StartGame =>
         (for {
           ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
