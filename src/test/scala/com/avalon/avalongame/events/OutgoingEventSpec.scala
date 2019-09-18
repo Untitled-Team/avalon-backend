@@ -50,6 +50,13 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     gameLeftJson should be(OutgoingEventEncoder.encoder(GameLeft))
   }
 
+  test("make sure we can encode PlayerReadyAcknowledgement event") {
+    val playerReadyAckJson: Json =
+      Json.obj("event" := "PlayerReadyAcknowledgement")
+
+    playerReadyAckJson should be(OutgoingEventEncoder.encoder(PlayerReadyAcknowledgement))
+  }
+
   test("make sure we can encode PlayerInfoEvent event") {
     forAll { playerInfoEvent: PlayerInfo =>
       val json = playerRoleEventJson(playerInfoEvent)
@@ -74,8 +81,22 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     }
   }
 
+  test("make sure we can encode PartyApprovalVoteAcknowledgement event") {
+    val playerApprovalVoteAckJson: Json =
+      Json.obj("event" := "PartyApprovalVoteAcknowledgement")
+
+    playerApprovalVoteAckJson should be(OutgoingEventEncoder.encoder(PartyApprovalVoteAcknowledgement))
+  }
+
   test("make sure we can encode PartyApproved event") {
     partyApprovedJson should be(OutgoingEventEncoder.encoder(PartyApproved))
+  }
+
+  test("make sure we can encode QuestVoteAcknowledgement event") {
+    val questVoteAckJson: Json =
+      Json.obj("event" := "QuestVoteAcknowledgement")
+
+    questVoteAckJson should be(OutgoingEventEncoder.encoder(QuestVoteAcknowledgement))
   }
 
   test("make sure we can encode PassFailVoteResults event") {
@@ -84,6 +105,13 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
 
       json should be(OutgoingEventEncoder.encoder(passFailVoteResults))
     }
+  }
+
+  test("make sure we can encode QuestDisplayAcknowledgement event") {
+    val questDisplayAckJson: Json =
+      Json.obj("event" := "QuestDisplayAcknowledgement")
+
+    questDisplayAckJson should be(OutgoingEventEncoder.encoder(QuestDisplayAcknowledgement))
   }
 
   test("make sure we can encode AssassinVoteOutgoingEvent event") {
@@ -117,7 +145,6 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
 
   val gameLeftJson: Json =
     Json.obj("event" := "GameLeft")
-
 
   def playerRoleEventJson(playerRoleEvent: PlayerInfo): Json =
     Json.obj(

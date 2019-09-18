@@ -152,6 +152,7 @@ object EventManager {
           result        <- room.playerReady(ctx.nickname)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+          _             <- outgoing.send(ctx.nickname, PlayerReadyAcknowledgement)
           _ <- result match {
             case AllReady(missionNumber, leader, missions) =>
               outgoing.sendToAll(TeamAssignmentPhase(missionNumber, leader, missions))
@@ -181,6 +182,7 @@ object EventManager {
           voteStatus    <- room.teamVote(ctx.nickname, vote)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+          _             <- outgoing.send(ctx.nickname, PartyApprovalVoteAcknowledgement)
           _ <- voteStatus match {
             case TeamPhaseStillVoting => F.unit
             case FailedVote(missionLeader, missionNumber, _, missions) =>
@@ -188,7 +190,7 @@ object EventManager {
             case SuccessfulVote(_) => outgoing.sendToAll(PartyApproved)
           }
         } yield ()).onError {
-          case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getStackTrace}"))
+          case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getMessage}"))
         }
 
       case QuestVoteEvent(vote) =>
@@ -198,6 +200,7 @@ object EventManager {
           voteStatus    <- room.questVote(ctx.nickname, vote)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+          _             <- outgoing.send(ctx.nickname, QuestVoteAcknowledgement)
           _ <- voteStatus match {
             case QuestPhaseStillVoting => F.unit
             case FinishedVote(votes) =>
@@ -214,6 +217,7 @@ object EventManager {
           resultsStatus <- room.questResultsSeen(ctx.nickname)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
+          _             <- outgoing.send(ctx.nickname, QuestDisplayAcknowledgement)
           _ <- resultsStatus match {
             case StillViewingQuestResults => F.unit
             case AssassinVote(assassin, goodGuys) =>
