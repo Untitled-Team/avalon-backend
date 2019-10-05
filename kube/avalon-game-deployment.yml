@@ -1,0 +1,38 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: avalon-back-end-service
+spec:
+  type: ClusterIP
+  selector:
+    app: avalon-back-end
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: avalon-back-end
+  namespace: default
+  labels:
+    app: avalon-back-end
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: avalon-back-end
+  template:
+    metadata:
+      labels:
+        app: avalon-back-end
+    spec:
+      containers:
+        - name: avalon-back-end
+          image: tbrown1979/avalon-game:latest
+          ports:
+            - containerPort: 8000
+              name: http
