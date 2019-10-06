@@ -51,7 +51,7 @@ releaseProcess := Seq[ReleaseStep](
   setReleaseVersion,                      // : ReleaseStep
   commitReleaseVersion,                   // : ReleaseStep, performs the initial git checks
   tagRelease,                             // : ReleaseStep
-//  publishArtifacts,                       // : ReleaseStep, checks whether `publishTo` is properly set up
+//  publishArtifacts,                       // We don't need to publish!
   setNextVersion,                         // : ReleaseStep
   commitNextVersion,                      // : ReleaseStep
   pushChanges                             // : ReleaseStep, also checks that an upstream branch is properly configured
@@ -66,8 +66,6 @@ scalacOptions ++= Seq(
   "-Ypartial-unification",
   "-Xfatal-warnings",
 )
-
-//publish / skip := true
 
 dockerfile in docker := {
   // The assembly task generates a fat JAR file
@@ -97,5 +95,5 @@ dockerfile in docker := {
 // Set a custom image name
 imageNames in docker := {
   val imageName = ImageName("tbrown1979/avalon-game")
-  Seq(imageName, imageName.copy(tag = Some("latest")))
+  Seq(imageName, imageName.copy(tag = Some(version.toString)))
 }
