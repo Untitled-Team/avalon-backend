@@ -23,10 +23,9 @@ jobs:
         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Build container image
-      uses: |
-        actions/docker/cli@master
-        olafurpg/setup-scala@v5
-      with: 
+    - uses: actions/docker/cli@master
+    - uses: olafurpg/setup-scala@v5
+      with:
         args: sbt \"release with-defaults\"
 #        args: build -t andrewsomething/static-example:$(echo $GITHUB_SHA | head -c7) .
 
