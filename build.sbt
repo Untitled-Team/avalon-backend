@@ -15,6 +15,7 @@ lazy val root = (project in file("."))
     name := "avalon-game",
     version := "0.0.1-SNAPSHOT",
     scalaVersion := "2.12.8",
+//    publish / skip := true,
     libraryDependencies ++= Seq(
       "io.chrisdavenport" %% "cats-par"              % catsParVersion,
       "io.circe"          %% "circe-generic"         % CirceVersion,
@@ -40,6 +41,22 @@ lazy val root = (project in file("."))
 
 enablePlugins(DockerPlugin)
 
+import ReleaseTransformations._
+
+releaseProcess := Seq[ReleaseStep](
+  checkSnapshotDependencies,              // : ReleaseStep
+  inquireVersions,                        // : ReleaseStep
+  runClean,                               // : ReleaseStep
+  runTest,                                // : ReleaseStep
+  setReleaseVersion,                      // : ReleaseStep
+  commitReleaseVersion,                   // : ReleaseStep, performs the initial git checks
+  tagRelease,                             // : ReleaseStep
+//  publishArtifacts,                       // : ReleaseStep, checks whether `publishTo` is properly set up
+  setNextVersion,                         // : ReleaseStep
+  commitNextVersion,                      // : ReleaseStep
+  pushChanges                             // : ReleaseStep, also checks that an upstream branch is properly configured
+)
+
 scalacOptions ++= Seq(
   "-deprecation",
   "-encoding", "UTF-8",
@@ -49,6 +66,8 @@ scalacOptions ++= Seq(
   "-Ypartial-unification",
   "-Xfatal-warnings",
 )
+
+//publish / skip := true
 
 dockerfile in docker := {
   // The assembly task generates a fat JAR file
