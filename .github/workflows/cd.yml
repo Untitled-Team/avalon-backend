@@ -24,7 +24,7 @@ jobs:
 
     - name: Build container image
     - uses: actions/docker/cli@master
-    - uses: olafurpg/setup-scala@v5
+            olafurpg/setup-scala@v5
       run: sbt \"release with-defaults\"
 #        args: build -t andrewsomething/static-example:$(echo $GITHUB_SHA | head -c7) .
 
