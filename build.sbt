@@ -13,7 +13,6 @@ lazy val root = (project in file("."))
   .settings(
     organization := "com.avalon",
     name := "avalon-game",
-    version := "0.0.1-SNAPSHOT",
     scalaVersion := "2.12.8",
 //    publish / skip := true,
     libraryDependencies ++= Seq(
