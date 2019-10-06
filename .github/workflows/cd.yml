@@ -26,7 +26,8 @@ jobs:
       uses: |
         actions/docker/cli@master
         olafurpg/setup-scala@v5
-      run: sbt \"release with-defaults\"
+      with: 
+        args: sbt \"release with-defaults\"
 #        args: build -t andrewsomething/static-example:$(echo $GITHUB_SHA | head -c7) .
 
     - name: Push image to Docker Hub
@@ -36,7 +37,8 @@ jobs:
 
     - name: Get latest tag
       uses: srt32/git-actions@v0.0.3
-      run: git describe --abbrev=0
+      with: 
+        args: git describe --abbrev=0
 
 #    - name: Update deployment file
 #      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|andrewsomething/static-example:'${TAG}'|' $GITHUB_WORKSPACE/config/deployment.yml
