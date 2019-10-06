@@ -16,6 +16,11 @@ jobs:
 #     - name: Update SHA
 #       run: echo $GITHUB_SHA > $GITHUB_WORKSPACE/site/_meta
 
+    - name: Get latest tag
+      uses: srt32/git-actions@v0.0.3
+      with: 
+        args: echo git describe --abbrev=0
+
     - name: Docker Login
       uses: actions/docker/login@master
       env:
