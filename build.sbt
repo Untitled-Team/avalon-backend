@@ -41,21 +41,6 @@ lazy val root = (project in file("."))
 
 enablePlugins(DockerPlugin)
 
-import ReleaseTransformations._
-
-releaseProcess := Seq[ReleaseStep](
-  checkSnapshotDependencies,              // : ReleaseStep
-  inquireVersions,                        // : ReleaseStep
-  runClean,                               // : ReleaseStep
-  runTest,                                // : ReleaseStep
-  setReleaseVersion,                      // : ReleaseStep
-  commitReleaseVersion,                   // : ReleaseStep, performs the initial git checks
-  tagRelease,                             // : ReleaseStep
-//  publishArtifacts,                       // We don't need to publish!
-  setNextVersion,                         // : ReleaseStep
-  commitNextVersion,                      // : ReleaseStep
-  pushChanges                             // : ReleaseStep, also checks that an upstream branch is properly configured
-)
 
 scalacOptions ++= Seq(
   "-deprecation",
@@ -95,5 +80,31 @@ dockerfile in docker := {
 // Set a custom image name
 imageNames in docker := {
   val imageName = ImageName("tbrown1979/avalon-game")
-  Seq(imageName, imageName.copy(tag = Some(version.toString)))
+  Seq(imageName, imageName.copy(tag = Some(version.value))) //use the current version from version.sbt
 }
+
+lazy val publishDocker = ReleaseStep(action = st => {
+  val extracted = Project.extract(st)
+  val ref: ProjectRef = extracted.get(thisProjectRef)
+  extracted.runAggregated(
+    sbtdocker.DockerKeys.dockerBuildAndPush in sbtdocker.DockerPlugin.autoImport.docker in ref,
+    st)
+  st
+})
+
+import ReleaseTransformations._
+
+releaseProcess := Seq[ReleaseStep](
+  checkSnapshotDependencies,              // : ReleaseStep
+  inquireVersions,                        // : ReleaseStep
+  runClean,                               // : ReleaseStep
+  runTest,                                // : ReleaseStep
+  setReleaseVersion,                      // : ReleaseStep
+  commitReleaseVersion,                   // : ReleaseStep, performs the initial git checks
+  tagRelease,                             // : ReleaseStep
+  publishDocker,
+//  publishArtifacts,                       // We don't need to publish!
+  setNextVersion,                         // : ReleaseStep
+  commitNextVersion,                      // : ReleaseStep
+  pushChanges                             // : ReleaseStep, also checks that an upstream branch is properly configured
+)
