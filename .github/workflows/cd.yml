@@ -19,7 +19,7 @@ jobs:
     - name: Get latest tag
       uses: srt32/git-actions@v0.0.3
       with: 
-        args: echo git describe --abbrev=0
+        args: git describe --abbrev=0
 
     - name: Docker Login
       uses: actions/docker/login@master
