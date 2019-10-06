@@ -15,6 +15,7 @@ lazy val root = (project in file("."))
     name := "avalon-game",
     version := "0.0.1-SNAPSHOT",
     scalaVersion := "2.12.8",
+    publish / skip := true,
     libraryDependencies ++= Seq(
       "io.chrisdavenport" %% "cats-par"              % catsParVersion,
       "io.circe"          %% "circe-generic"         % CirceVersion,
@@ -50,7 +51,7 @@ scalacOptions ++= Seq(
   "-Xfatal-warnings",
 )
 
-publish / skip := true
+//publish / skip := true
 
 dockerfile in docker := {
   // The assembly task generates a fat JAR file
