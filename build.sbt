@@ -50,6 +50,8 @@ scalacOptions ++= Seq(
   "-Xfatal-warnings",
 )
 
+publish / skip := true
+
 dockerfile in docker := {
   // The assembly task generates a fat JAR file
   val artifact: File = assembly.value
