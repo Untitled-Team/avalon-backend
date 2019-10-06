@@ -13,8 +13,8 @@ jobs:
     - name: Checkout master
       uses: actions/checkout@master
 
-    - name: Update SHA
-      run: echo $GITHUB_SHA > $GITHUB_WORKSPACE/site/_meta
+#     - name: Update SHA
+#       run: echo $GITHUB_SHA > $GITHUB_WORKSPACE/site/_meta
 
     - name: Docker Login
       uses: actions/docker/login@master
