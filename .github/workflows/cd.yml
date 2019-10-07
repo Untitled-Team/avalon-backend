@@ -43,22 +43,22 @@ jobs:
       with: 
         args: git describe --abbrev=0
 
-#    - name: Update deployment file
-#      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|andrewsomething/static-example:'${TAG}'|' $GITHUB_WORKSPACE/config/deployment.yml
+    - name: Update deployment file
+      run: sed -i 's|<IMAGE>|tbrown1979/avalon-game:'${LATEST_TAG}'|' $GITHUB_WORKSPACE/kube/deployment.yml
+
+    - name: Save DigitalOcean kubeconfig
+      uses: digitalocean/action-doctl@master
+      env:
+        DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      with:
+        args: kubernetes cluster kubeconfig show actions-example > $GITHUB_WORKSPACE/.kubeconfig
 #
-#    - name: Save DigitalOcean kubeconfig
-#      uses: digitalocean/action-doctl@master
-#      env:
-#        DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-#      with:
-#        args: kubernetes cluster kubeconfig show actions-example > $GITHUB_WORKSPACE/.kubeconfig
-#
-#    - name: Deploy to DigitalOcean Kubernetes
-#      uses: docker://lachlanevenson/k8s-kubectl
-#      with:
-#        args: --kubeconfig=/github/workspace/.kubeconfig apply -f /github/workspace/config/deployment.yml
-#
-#    - name: Verify deployment
-#      uses: docker://lachlanevenson/k8s-kubectl
-#      with:
-#        args: --kubeconfig=/github/workspace/.kubeconfig rollout status deployment/static-example
+    - name: Deploy to DigitalOcean Kubernetes
+      uses: docker://lachlanevenson/k8s-kubectl
+      with:
+        args: --kubeconfig=/github/workspace/.kubeconfig apply -f /github/workspace/kube/avalon-game-deployment.yml
+
+    - name: Verify deployment
+      uses: docker://lachlanevenson/k8s-kubectl
+      with:
+        args: --kubeconfig=/github/workspace/.kubeconfig rollout status deployment/avalon-back-end
