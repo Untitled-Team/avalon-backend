@@ -14,7 +14,6 @@ lazy val root = (project in file("."))
     organization := "com.avalon",
     name := "avalon-game",
     scalaVersion := "2.12.8",
-//    publish / skip := true,
     libraryDependencies ++= Seq(
       "io.chrisdavenport" %% "cats-par"              % catsParVersion,
       "io.circe"          %% "circe-generic"         % CirceVersion,
@@ -27,7 +26,6 @@ lazy val root = (project in file("."))
       "org.http4s"        %% "http4s-blaze-client"   % Http4sVersion,
       "org.http4s"        %% "http4s-circe"          % Http4sVersion,
       "org.http4s"        %% "http4s-dsl"            % Http4sVersion,
-//      "ch.qos.logback"    %  "logback-classic"       % LogbackVersion,
       "com.mrdziuban"     %% "scalacheck-magnolia"   % scalacheckMagnoliaV,
       "org.scalatest"     %% "scalatest"             % scalaTestV % Test,
       "org.specs2"        %% "specs2-core"           % specs2V % Test,
