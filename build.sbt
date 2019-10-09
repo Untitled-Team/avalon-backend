@@ -93,6 +93,8 @@ lazy val publishDocker = ReleaseStep(action = st => {
 
 import ReleaseTransformations._
 
+releaseCommitMessage := s"Setting version to ${(version in ThisBuild).value} [skip ci]"
+
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,              // : ReleaseStep
   inquireVersions,                        // : ReleaseStep
@@ -102,7 +104,6 @@ releaseProcess := Seq[ReleaseStep](
   commitReleaseVersion,                   // : ReleaseStep, performs the initial git checks
   tagRelease,                             // : ReleaseStep
   publishDocker,
-//  publishArtifacts,                       // We don't need to publish!
   setNextVersion,                         // : ReleaseStep
   commitNextVersion,                      // : ReleaseStep
   pushChanges                             // : ReleaseStep, also checks that an upstream branch is properly configured
