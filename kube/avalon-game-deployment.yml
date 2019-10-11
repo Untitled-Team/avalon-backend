@@ -32,7 +32,7 @@ spec:
     spec:
       containers:
         - name: avalon-back-end
-          image: tbrown1979/avalon-game:latest
+          image: tbrown1979/avalon-game:$LATEST_TAG
           ports:
             - containerPort: 8000
               name: http
