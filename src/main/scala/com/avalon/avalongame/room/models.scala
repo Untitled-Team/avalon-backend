@@ -12,6 +12,7 @@ import scala.util.control.NoStackTrace
 // Errors
 //==================
 
+case class RoomAlreadyExists(roomId: RoomId) extends RuntimeException with NoStackTrace
 case class PlayerIsNotTheAssassin(nickname: Nickname) extends RuntimeException with NoStackTrace
 case object NoPlayerIsMerlinSomehow extends RuntimeException with NoStackTrace
 case object NoPlayerIsTheAssassinSomehow extends RuntimeException with NoStackTrace

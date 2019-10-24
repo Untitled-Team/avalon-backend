@@ -19,17 +19,35 @@ class RoomManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChec
   }
 
   test("Create and update the room manager, alongside some room tests") {
-    forAll { (chatId: RoomId, nickname: Nickname, config: GameConfig) =>
+    forAll { (roomId: RoomId, nickname: Nickname, config: GameConfig) =>
 
-      val roomManager = RoomManager.build[IO](mockRandomAlg).unsafeRunSync()
+      val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
+        override def generate: IO[RoomId] = IO.pure(roomId)
+      }
 
-      roomManager.create(chatId).unsafeRunSync()
+      val roomManager = RoomManager.build[IO](mockRandomAlg, mockRoomIdGenerator).unsafeRunSync()
 
-      val room = roomManager.get(chatId).unsafeRunSync()
+      roomManager.create.unsafeRunSync()
+
+      val room = roomManager.get(roomId).unsafeRunSync()
 
       room.players.unsafeRunSync() should be(Nil)
       room.addUser(nickname).unsafeRunSync()
       room.players.unsafeRunSync() should be(List(nickname))
+    }
+  }
+
+  test("Fail if the room already exists") {
+    forAll { roomId: RoomId =>
+
+      val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
+        override def generate: IO[RoomId] = IO.pure(roomId)
+      }
+
+      val roomManager = RoomManager.build[IO](mockRandomAlg, mockRoomIdGenerator).unsafeRunSync()
+
+      roomManager.create.unsafeRunSync()
+      roomManager.create.attempt.unsafeRunSync() should be(Left(RoomAlreadyExists(roomId)))
     }
   }
 }
