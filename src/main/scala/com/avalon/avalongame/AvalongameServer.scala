@@ -18,12 +18,12 @@ import scala.concurrent.ExecutionContext.global
 object AvalongameServer {
 
   def stream[F[_]: ConcurrentEffect : Par](implicit T: Timer[F], C: ContextShift[F]): Stream[F, Nothing] = {
+    val randomAlg = RandomAlg.build[F]
+    val roomIdGen = RoomIdGenerator.build[F]
+
     for {
-      client <- BlazeClientBuilder[F](global).stream
-      randomAlg = RandomAlg.build[F]
-      roomManager <- Stream.eval(RoomManager.build[F](randomAlg))
-      roomIdGen = RoomIdGenerator.build[F]
-      eventManager <- Stream.eval(EventManager.build[F](roomManager, roomIdGen))
+      roomManager <- Stream.eval(RoomManager.build[F](randomAlg, roomIdGen))
+      eventManager <- Stream.eval(EventManager.build[F](roomManager))
 
       // Combine Service Routes into an HttpApp.
       // Can also be done via a Router if you

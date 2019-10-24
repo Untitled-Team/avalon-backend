@@ -31,14 +31,10 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager{}
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure(new MockRoom {})
           }
           val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
@@ -48,7 +44,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             CreateGame(nickname1),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).attempt.unsafeRunSync() should be(Left(ContextExistsAlready))
@@ -63,7 +58,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO(Nil)
@@ -73,10 +68,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
           val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](None).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map.empty).unsafeRunSync()
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -85,7 +76,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             CreateGame(nickname1),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).attempt.unsafeRunSync()
@@ -111,7 +101,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO(Nil)
@@ -122,10 +112,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
           val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -134,7 +120,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             JoinGame(nickname1, roomId),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).attempt.unsafeRunSync() should be(Left(ContextExistsAlready))
@@ -158,7 +143,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO(Nil)
@@ -168,10 +153,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
           val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](None).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -180,7 +161,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             JoinGame(nickname1, roomId),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -211,7 +191,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def removePlayer(player: Nickname): IO[Unit] = roomRemoveRef.set(Some(()))
@@ -219,10 +199,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             }
           }
           val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](None).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
@@ -232,7 +208,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             LeaveGame,
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).attempt.unsafeRunSync() should be(Left(NoContext))
@@ -256,7 +231,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def removePlayer(player: Nickname): IO[Unit] = IO.raiseError(GameHasStarted)
@@ -264,10 +239,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             }
           }
           val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
@@ -277,7 +248,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             LeaveGame,
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).attempt.unsafeRunSync() should be(Left(GameHasStarted))
@@ -303,7 +273,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO.pure(Nil)
@@ -313,10 +283,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
           val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -325,7 +291,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             LeaveGame,
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -352,7 +317,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager{}
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO.pure(Nil)
@@ -362,10 +327,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
 
           val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](None).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -374,7 +335,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             Reconnect(nickname1, roomId),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).attempt.unsafeRunSync() should be(Left(NicknameNotFoundInRoom(nickname1)))
@@ -389,16 +349,12 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO.pure(List(nickname1))
               }
             }
-          }
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
           }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](None).unsafeRunSync()
@@ -409,7 +365,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             Reconnect(nickname1, roomId),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).attempt.unsafeRunSync() should be(Left(NoRoomFoundForChatId))
@@ -430,7 +385,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO.pure(List(nickname1))
@@ -440,10 +395,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
 
           val mockRoom = mockRoomManager.get(roomId).unsafeRunSync()
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](None).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -452,7 +403,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             Reconnect(nickname1, roomId),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -479,7 +429,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO(Nil)
@@ -487,10 +437,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
                 override def startGame: IO[AllPlayerRoles] = IO.pure(AllPlayerRoles(Nil, List(BadPlayerRole(nickname1, Assassin))))
               }
             }
-          }
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
           }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
@@ -501,7 +447,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             StartGame,
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -529,16 +474,12 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val mockAllReady = AllReady(1, Nickname("Blah"), missions)
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = IO.pure(NotReadyYet(Nil))
               }
             }
-          }
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
           }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
@@ -549,7 +490,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             PlayerReady,
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -576,16 +516,12 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val mockAllReady = AllReady(1, Nickname("Blah"), missions)
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = IO.pure(AllReady(1, Nickname("Blah"), missions))
               }
             }
-          }
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
           }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
@@ -596,7 +532,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             PlayerReady,
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -623,7 +558,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
 
               new MockRoom {
@@ -635,10 +570,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             }
           }
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -647,7 +578,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             PartyApprovalVote(TeamVote(false)),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -672,7 +602,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
 
               new MockRoom {
@@ -684,10 +614,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             }
           }
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -696,7 +622,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             PartyApprovalVote(TeamVote(false)),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -723,7 +648,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
 
               new MockRoom {
@@ -735,10 +660,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             }
           }
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -747,7 +668,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             PartyApprovalVote(TeamVote(false)),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -775,17 +695,13 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val mockAllReady = AllReady(1, Nickname("Blah"), missions)
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def proposeMission(nickname: Nickname, players: List[Nickname]): IO[MissionProposal] =
                   IO.pure(MissionProposal(1, nickname1, players))
               }
             }
-          }
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
           }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
@@ -796,7 +712,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ProposeParty(List(nickname1)),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -822,7 +737,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO(Nil)
@@ -833,10 +748,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             }
           }
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -845,7 +756,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             QuestVoteEvent(QuestVote(false)),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -870,7 +780,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO(Nil)
@@ -881,10 +791,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             }
           }
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
@@ -893,7 +799,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             QuestVoteEvent(QuestVote(false)),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -920,16 +825,12 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def questResultsSeen(nickname: Nickname): IO[AfterQuest] = IO.pure(StillViewingQuestResults)
               }
             }
-          }
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
           }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
@@ -940,7 +841,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             QuestVotesDisplayed,
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -965,16 +865,12 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def questResultsSeen(nickname: Nickname): IO[AfterQuest] = IO.pure(AssassinVote(nickname1, Nil))
               }
             }
-          }
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
           }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
@@ -985,7 +881,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             QuestVotesDisplayed,
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -1013,17 +908,13 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def questResultsSeen(nickname: Nickname): IO[AfterQuest] =
                   IO.pure(BadGuyVictory(BadPlayerRole(nickname1, Assassin), None, GoodPlayerRole(nickname2, Merlin), Nil, Nil, BadGuys))
               }
             }
-          }
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
           }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
@@ -1034,7 +925,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             QuestVotesDisplayed,
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -1062,7 +952,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
 
@@ -1070,10 +960,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
                   IO.pure(GameContinues(nickname1, 2, missions))
               }
             }
-          }
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
           }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
@@ -1084,7 +970,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             QuestVotesDisplayed,
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -1112,17 +997,13 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] =
                   IO.pure(GameOver(BadPlayerRole(nickname1, Assassin), None, GoodPlayerRole(nickname2, Merlin), Nil, Nil, BadGuys))
               }
             }
-          }
-
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
           }
 
           val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
@@ -1133,7 +1014,6 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             IncomingAssassinVote(nickname1),
             userQueue,
             mockRoomManager,
-            mockRoomIdGenerator,
             outgoingRef,
             ctxRef
           ).unsafeRunSync()
@@ -1162,7 +1042,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
-            override def create(roomId: RoomId): IO[Unit] = IO.unit
+            override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO(Nil)
@@ -1172,13 +1052,9 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             }
           }
 
-          override val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-            override def generate: IO[RoomId] = IO.pure(roomId)
-          }
-
           val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
 
-          val eventManager: EventManager[IO] = EventManager.buildOutgoing[IO](mockRoomManager, mockRoomIdGenerator, outgoingRef)
+          val eventManager: EventManager[IO] = EventManager.buildOutgoing[IO](mockRoomManager, outgoingRef)
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
           val mvar: MVar[IO, Unit] = MVar.empty[IO, Unit].unsafeRunSync()
@@ -1195,17 +1071,5 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
     }
   }
 
-  trait context {
-    val mockRoomIdGenerator: RoomIdGenerator[IO] = new RoomIdGenerator[IO] {
-      override def generate: IO[RoomId] = IO.pure(RoomId("blah"))
-    }
-
-    val mockRandomAlg: RandomAlg[IO] = new RandomAlg[IO] {
-      override def shuffle[A](l: List[A]): IO[List[A]] = IO.pure(l)
-      override def randomGet[A](l: List[A]): IO[A] = IO(l.head) //oops
-      override def clockwise[A: Eq](previous: A, l: List[A]): IO[A] = IO(l.head)
-    }
-
-    val roomManager: RoomManager[IO] = RoomManager.build[IO](mockRandomAlg).unsafeRunSync()
-  }
+  trait context {}
 }

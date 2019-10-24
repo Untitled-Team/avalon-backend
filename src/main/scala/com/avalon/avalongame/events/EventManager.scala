@@ -32,7 +32,6 @@ object EventManager {
   case object NoContext extends RuntimeException with NoStackTrace
 
   private[events] def buildOutgoing[F[_]: Par](roomManager: RoomManager[F],
-                                               roomIdGenerator: RoomIdGenerator[F],
                                                outgoingRef: Ref[F, Map[RoomId, OutgoingManager[F]]])(implicit F: Concurrent[F]): EventManager[F] =
     new EventManager[F] {
         //it's possible we could have two rooms with same Id, but we don't care right now.
@@ -40,7 +39,7 @@ object EventManager {
           Stream.eval(Ref.of[F, Option[ConnectionContext]](None)).flatMap { context =>
             events
               .evalMap {
-                handleEvent(_, respond, roomManager, roomIdGenerator, outgoingRef, context)
+                handleEvent(_, respond, roomManager, outgoingRef, context)
                   .handleErrorWith(t => F.delay(println(s"We encountered an error while trying to handle the incoming event:$t")))
               }
               .onFinalize { //disconnected
@@ -58,24 +57,22 @@ object EventManager {
           }.compile.drain
     }
 
-  def build[F[_]: Par](roomManager: RoomManager[F], roomIdGenerator: RoomIdGenerator[F])(implicit F: Concurrent[F]): F[EventManager[F]] =
+  def build[F[_]: Par](roomManager: RoomManager[F])(implicit F: Concurrent[F]): F[EventManager[F]] =
     Ref.of[F, Map[RoomId, OutgoingManager[F]]](Map.empty).map { outgoingRef =>
-      buildOutgoing(roomManager, roomIdGenerator, outgoingRef)
+      buildOutgoing(roomManager, outgoingRef)
     }
 
   //this shouldn't need the respond Queue, it should be able tou se the OutgoingManager
   def handleEvent[F[_]: Par](event: IncomingEvent,
                              respond: Queue[F, OutgoingEvent],
                              roomManager: RoomManager[F],
-                             roomIdGenerator: RoomIdGenerator[F],
                              outgoingRef: Ref[F, Map[RoomId, OutgoingManager[F]]],
                              context: Ref[F, Option[ConnectionContext]])(implicit F: Concurrent[F]): F[Unit] = {
     event match {
       case CreateGame(nickname) => //can't do this if ConnectionContext exists
         (for {
           _        <- context.get.flatMap(c => if (c.isEmpty) F.unit else F.raiseError[Unit](ContextExistsAlready))//tests
-          roomId   <- roomIdGenerator.generate
-          _        <- roomManager.create(roomId)
+          roomId   <- roomManager.create
           room     <- roomManager.get(roomId)
           _        <- room.addUser(nickname)
           outgoing <- OutgoingManager.build[F]
