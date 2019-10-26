@@ -12,7 +12,9 @@ import io.circe.generic.semiauto._
 import io.circe.syntax._
 import io.circe.{Encoder, _}
 
-sealed trait OutgoingEvent
+sealed trait OutgoingEvent {
+  def id: FUUID
+}
 
 case class MoveToLobby(roomId: RoomId, players: List[Nickname], id: FUUID) extends OutgoingEvent
 

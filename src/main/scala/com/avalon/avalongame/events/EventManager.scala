@@ -121,14 +121,14 @@ object EventManager {
           case t => Sync[F].delay(println(s"We encountered an error while disconnecting player,  ${t.getStackTrace}"))
         }
 
-      case Reconnect(nickname, roomId) =>
+      case Reconnect(nickname, roomId, lastMessageId) =>
         (for {
           _        <- context.get.flatMap(c => if (c.isEmpty) F.unit else F.raiseError[Unit](ContextExistsAlready))//tests
           room     <- roomManager.get(roomId)
           _        <- room.players.ensure(NicknameNotFoundInRoom(nickname))(_.contains(nickname))
           mapping  <- outgoingRef.get
           outgoing <- Sync[F].fromOption(mapping.get(roomId), NoRoomFoundForChatId)
-          _        <- outgoing.reconnect(nickname, respond)
+          _        <- outgoing.reconnect(nickname, lastMessageId, respond)
           _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
         } yield ()).onError {
           case t => Sync[F].delay(println(s"We encountered an error while creating game for $nickname,  ${t.getStackTrace}"))
@@ -261,7 +261,7 @@ trait OutgoingManager[F[_]] {
   def remove(nickname: Nickname): F[Unit]
   def send(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit]
   def disconnected(nickname: Nickname): F[Unit]
-  def reconnect(nickname: Nickname, respond: Queue[F, OutgoingEvent]): F[Unit]
+  def reconnect(nickname: Nickname, lastMessageId: FUUID, respond: Queue[F, OutgoingEvent]): F[Unit]
   def broadcast(nickname: Nickname, outgoingEvent: OutgoingEvent): F[Unit]
   def broadcastUserSpecific(nickname: Nickname, outgoingF: Nickname => F[OutgoingEvent]): F[Unit]
   def sendToAll(event: OutgoingEvent): F[Unit]
@@ -285,12 +285,14 @@ object OutgoingManager {
               if (nickname === ctx.nickname) ctx.copy(eventsSinceDisconnect = Some(Nil), respond = Option.empty[Queue[F, OutgoingEvent]]) else ctx))
         }
 
-      def reconnect(nickname: Nickname, respond: Queue[F, OutgoingEvent]): F[Unit] =
+      def reconnect(nickname: Nickname, lastMessageId: FUUID, respond: Queue[F, OutgoingEvent]): F[Unit] =
         sem.withPermit {
           for {
             connections <- ref.get
             c <- F.fromOption(connections.find(_.nickname === nickname), NoOutgoingEventContextExistsForUser(nickname))
-            eventsToSend = c.eventsSinceDisconnect.getOrElse(Nil)
+            eventsToSend = c.events.dropWhile(_.id =!= lastMessageId).drop(1)
+
+            //modify here and fail if we couldn't update?
             _ <- ref.update(_.map(ctx => if (nickname === ctx.nickname) ctx.copy(respond = Some(respond), eventsSinceDisconnect = None) else ctx))
             _ <- eventsToSend.parTraverse_(event => respond.enqueue1(event))
           } yield {}

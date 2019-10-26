@@ -303,30 +303,28 @@ class OutgoingManagerSpec extends WordSpec with Matchers with ScalaCheckProperty
         val outgoingManager: OutgoingManager[IO] =
           OutgoingManager.buildPrivate[IO](sem, ref)
 
+        val p1 = PartyApproved(FUUID.randomFUUID[IO].unsafeRunSync())
+        val p2 = PartyApproved(FUUID.randomFUUID[IO].unsafeRunSync())
+        val p3 = PartyApproved(FUUID.randomFUUID[IO].unsafeRunSync())
+        val p4 = PartyApproved(FUUID.randomFUUID[IO].unsafeRunSync())
+
         outgoingManager.add(nickname, userQueue).unsafeRunSync()
         outgoingManager.disconnected(nickname).unsafeRunSync()
-        outgoingManager.send(nickname, PartyApproved.make[IO].unsafeRunSync()).unsafeRunSync()
-        outgoingManager.send(nickname, PartyApproved.make[IO].unsafeRunSync()).unsafeRunSync()
-        outgoingManager.send(nickname, PartyApproved.make[IO].unsafeRunSync()).unsafeRunSync()
-        outgoingManager.send(nickname, PartyApproved.make[IO].unsafeRunSync()).unsafeRunSync()
+        outgoingManager.send(nickname, p1).unsafeRunSync()
+        outgoingManager.send(nickname, p2).unsafeRunSync()
+        outgoingManager.send(nickname, p3).unsafeRunSync()
+        outgoingManager.send(nickname, p4).unsafeRunSync()
 
-        outgoingManager.reconnect(nickname, userQueueReconnect).unsafeRunSync()
+        outgoingManager.reconnect(nickname, p3.id, userQueueReconnect).unsafeRunSync()
 
         val ctx = ref.get.unsafeRunSync().find(_.nickname === nickname).get
 
-        ctx.events should be(
-          List(
-            PartyApproved.make[IO].unsafeRunSync(),
-            PartyApproved.make[IO].unsafeRunSync(),
-            PartyApproved.make[IO].unsafeRunSync(),
-            PartyApproved.make[IO].unsafeRunSync()))
+        ctx.events should be(List(p1, p2, p3, p4))
         ctx.eventsSinceDisconnect should be(None)
 
         userQueue.tryDequeue1.unsafeRunSync() should be(None)
-        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved.make[IO].unsafeRunSync()))
-        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved.make[IO].unsafeRunSync()))
-        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved.make[IO].unsafeRunSync()))
-        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved.make[IO].unsafeRunSync()))
+        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(p4))
+        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(None)
       }
     }
   }

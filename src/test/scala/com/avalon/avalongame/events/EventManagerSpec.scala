@@ -340,7 +340,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
           EventManager.handleEvent[IO](
-            Reconnect(nickname1, roomId),
+            Reconnect(nickname1, roomId, FUUID.randomFUUID[IO].unsafeRunSync()),
             userQueue,
             mockRoomManager,
             outgoingRef,
@@ -370,7 +370,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
           EventManager.handleEvent[IO](
-            Reconnect(nickname1, roomId),
+            Reconnect(nickname1, roomId, FUUID.randomFUUID[IO].unsafeRunSync()),
             userQueue,
             mockRoomManager,
             outgoingRef,
@@ -389,7 +389,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
 
           val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager {
-            override def reconnect(nickname: Nickname, respond: Queue[IO, OutgoingEvent]): IO[Unit] = reconnectRef.set(Some(nickname))
+            override def reconnect(nickname: Nickname, id: FUUID, respond: Queue[IO, OutgoingEvent]): IO[Unit] = reconnectRef.set(Some(nickname))
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
@@ -408,7 +408,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
           EventManager.handleEvent[IO](
-            Reconnect(nickname1, roomId),
+            Reconnect(nickname1, roomId, FUUID.randomFUUID[IO].unsafeRunSync()),
             userQueue,
             mockRoomManager,
             outgoingRef,
