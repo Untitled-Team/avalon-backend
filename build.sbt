@@ -3,6 +3,7 @@ val CirceVersion = "0.11.1"
 val catsParVersion = "0.2.1"
 val enumeratumV = "1.5.13"
 val LogbackVersion = "1.2.3"
+val fuuidV = "0.2.0"
 
 //tests
 val scalacheckMagnoliaV = "0.0.2"
@@ -22,6 +23,8 @@ lazy val root = (project in file("."))
       "com.beachape"      %% "enumeratum"            % enumeratumV,
       "com.beachape"      %% "enumeratum-circe"      % enumeratumV,
       "com.beachape"      %% "enumeratum-scalacheck" % enumeratumV % Test,
+      "io.chrisdavenport" %% "fuuid"                 % fuuidV,
+      "io.chrisdavenport" %% "fuuid-circe"           % fuuidV,
       "org.http4s"        %% "http4s-blaze-server"   % Http4sVersion,
       "org.http4s"        %% "http4s-blaze-client"   % Http4sVersion,
       "org.http4s"        %% "http4s-circe"          % Http4sVersion,

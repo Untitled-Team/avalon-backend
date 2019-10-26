@@ -7,6 +7,7 @@ import com.avalon.avalongame.common._
 import com.avalon.avalongame.RandomAlg
 import com.mrdziuban.ScalacheckMagnolia._
 import fs2.concurrent.Queue
+import io.chrisdavenport.fuuid.FUUID
 import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
@@ -17,10 +18,12 @@ class OutgoingManagerSpec extends WordSpec with Matchers with ScalaCheckProperty
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.Implicits.global)
   implicit val t: Timer[IO] = IO.timer(scala.concurrent.ExecutionContext.Implicits.global)
 
-  val mockRandomAlg: RandomAlg[IO] = new RandomAlg[IO] {
+  implicit val mockRandomAlg: RandomAlg[IO] = new RandomAlg[IO] {
+    val constant = FUUID.randomFUUID[IO].unsafeRunSync()
     override def shuffle[A](l: List[A]): IO[List[A]] = IO.pure(l)
     override def randomGet[A](l: List[A]): IO[A] = IO(l.head) //oops
     override def clockwise[A: Eq](previous: A, l: List[A]): IO[A] = IO(l.head)
+    def fuuid: IO[FUUID] = IO.pure(constant)
   }
 
   "add" should {
@@ -101,13 +104,13 @@ class OutgoingManagerSpec extends WordSpec with Matchers with ScalaCheckProperty
           OutgoingManager.buildPrivate[IO](sem, ref)
 
         outgoingManager.add(nickname, userQueue).unsafeRunSync()
-        outgoingManager.send(nickname, PartyApproved).unsafeRunSync()
+        outgoingManager.send(nickname, PartyApproved.make[IO].unsafeRunSync()).unsafeRunSync()
 
         val ctx = ref.get.unsafeRunSync().find(_.nickname === nickname).get
-        ctx.events should be(List(PartyApproved))
+        ctx.events should be(List(PartyApproved.make[IO].unsafeRunSync()))
         ctx.eventsSinceDisconnect should be(None)
 
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(PartyApproved)
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(PartyApproved.make[IO].unsafeRunSync())
       }
     }
 
@@ -123,15 +126,15 @@ class OutgoingManagerSpec extends WordSpec with Matchers with ScalaCheckProperty
           OutgoingManager.buildPrivate[IO](sem, ref)
 
         outgoingManager.add(nickname, userQueue).unsafeRunSync()
-        outgoingManager.send(nickname, PartyApproved).unsafeRunSync()
-        outgoingManager.send(nickname, PassFailVoteResults(3, 3)).unsafeRunSync()
+        outgoingManager.send(nickname, PartyApproved.make[IO].unsafeRunSync()).unsafeRunSync()
+        outgoingManager.send(nickname, PassFailVoteResults.make[IO](3, 3).unsafeRunSync()).unsafeRunSync()
 
         val ctx = ref.get.unsafeRunSync().find(_.nickname === nickname).get
-        ctx.events should be(List(PartyApproved, PassFailVoteResults(3, 3)))
+        ctx.events should be(List(PartyApproved.make[IO].unsafeRunSync(), PassFailVoteResults.make[IO](3, 3).unsafeRunSync()))
         ctx.eventsSinceDisconnect should be(None)
 
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(PartyApproved)
-        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(PassFailVoteResults(3, 3))
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(PartyApproved.make[IO].unsafeRunSync())
+        userQueue.dequeue1.timeout(1 second).unsafeRunSync() should be(PassFailVoteResults.make[IO](3, 3).unsafeRunSync())
       }
     }
 
@@ -149,12 +152,12 @@ class OutgoingManagerSpec extends WordSpec with Matchers with ScalaCheckProperty
         outgoingManager.add(nickname, userQueue).unsafeRunSync()
         outgoingManager.disconnected(nickname).unsafeRunSync()
 
-        outgoingManager.send(nickname, PartyApproved).unsafeRunSync()
-        outgoingManager.send(nickname, PassFailVoteResults(3, 3)).unsafeRunSync()
+        outgoingManager.send(nickname, PartyApproved.make[IO].unsafeRunSync()).unsafeRunSync()
+        outgoingManager.send(nickname, PassFailVoteResults.make[IO](3, 3).unsafeRunSync()).unsafeRunSync()
 
         val ctx = ref.get.unsafeRunSync().find(_.nickname === nickname).get
-        ctx.events should be(List(PartyApproved, PassFailVoteResults(3, 3)))
-        ctx.eventsSinceDisconnect should be(Some(List(PartyApproved, PassFailVoteResults(3, 3))))
+        ctx.events should be(List(PartyApproved.make[IO].unsafeRunSync(), PassFailVoteResults.make[IO](3, 3).unsafeRunSync()))
+        ctx.eventsSinceDisconnect should be(Some(List(PartyApproved.make[IO].unsafeRunSync(), PassFailVoteResults.make[IO](3, 3).unsafeRunSync())))
       }
     }
   }
@@ -177,18 +180,18 @@ class OutgoingManagerSpec extends WordSpec with Matchers with ScalaCheckProperty
 
         outgoingManager.add(nickname, userQueue).unsafeRunSync()
         outgoingManager.add(nickname2, userQueue2).unsafeRunSync()
-        outgoingManager.broadcastUserSpecific(nickname, n => IO.pure(MoveToLobby(roomId, List(n)))).unsafeRunSync()
+        outgoingManager.broadcastUserSpecific(nickname, n => IO.pure(MoveToLobby.make[IO](roomId, List(n)).unsafeRunSync())).unsafeRunSync()
 
         val ctx = ref.get.unsafeRunSync().find(_.nickname === nickname).get
         val ctx2 = ref.get.unsafeRunSync().find(_.nickname === nickname2).get
 
         ctx.events should be(Nil)
-        ctx2.events should be(List(MoveToLobby(roomId, List(nickname2))))
+        ctx2.events should be(List(MoveToLobby.make[IO](roomId, List(nickname2)).unsafeRunSync()))
         ctx.eventsSinceDisconnect should be(None)
         ctx2.eventsSinceDisconnect should be(None)
 
         userQueue.tryDequeue1.unsafeRunSync() should be(None)
-        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(MoveToLobby(roomId, List(nickname2)))
+        userQueue2.dequeue1.timeout(1 second).unsafeRunSync() should be(MoveToLobby.make[IO](roomId, List(nickname2)).unsafeRunSync())
       }
     }
   }
@@ -211,18 +214,18 @@ class OutgoingManagerSpec extends WordSpec with Matchers with ScalaCheckProperty
 
         outgoingManager.add(nickname, userQueue).unsafeRunSync()
         outgoingManager.add(nickname2, userQueue2).unsafeRunSync()
-        outgoingManager.sendToAllUserSpecific(n => IO.pure(MoveToLobby(roomId, List(n)))).unsafeRunSync()
+        outgoingManager.sendToAllUserSpecific(n => MoveToLobby.make[IO](roomId, List(n))).unsafeRunSync()
 
         val ctx = ref.get.unsafeRunSync().find(_.nickname === nickname).get
         val ctx2 = ref.get.unsafeRunSync().find(_.nickname === nickname2).get
 
-        ctx.events should be(List(MoveToLobby(roomId, List(nickname))))
-        ctx2.events should be(List(MoveToLobby(roomId, List(nickname2))))
+        ctx.events should be(List(MoveToLobby.make[IO](roomId, List(nickname)).unsafeRunSync()))
+        ctx2.events should be(List(MoveToLobby.make[IO](roomId, List(nickname2)).unsafeRunSync()))
         ctx.eventsSinceDisconnect should be(None)
         ctx2.eventsSinceDisconnect should be(None)
 
-        userQueue.tryDequeue1.unsafeRunSync() should be(Some(MoveToLobby(roomId, List(nickname))))
-        userQueue2.tryDequeue1.unsafeRunSync() should be(Some(MoveToLobby(roomId, List(nickname2))))
+        userQueue.tryDequeue1.unsafeRunSync() should be(Some(MoveToLobby.make[IO](roomId, List(nickname)).unsafeRunSync()))
+        userQueue2.tryDequeue1.unsafeRunSync() should be(Some(MoveToLobby.make[IO](roomId, List(nickname2)).unsafeRunSync()))
       }
     }
 
@@ -246,15 +249,15 @@ class OutgoingManagerSpec extends WordSpec with Matchers with ScalaCheckProperty
         outgoingManager.disconnected(nickname).unsafeRunSync()
         outgoingManager.disconnected(nickname2).unsafeRunSync()
 
-        outgoingManager.sendToAllUserSpecific(n => IO.pure(MoveToLobby(roomId, List(n)))).unsafeRunSync()
+        outgoingManager.sendToAllUserSpecific(n => IO.pure(MoveToLobby.make[IO](roomId, List(n)).unsafeRunSync())).unsafeRunSync()
 
         val ctx = ref.get.unsafeRunSync().find(_.nickname === nickname).get
         val ctx2 = ref.get.unsafeRunSync().find(_.nickname === nickname2).get
 
-        ctx.events should be(List(MoveToLobby(roomId, List(nickname))))
-        ctx2.events should be(List(MoveToLobby(roomId, List(nickname2))))
-        ctx.eventsSinceDisconnect should be(Some(List(MoveToLobby(roomId, List(nickname)))))
-        ctx2.eventsSinceDisconnect should be(Some(List(MoveToLobby(roomId, List(nickname2)))))
+        ctx.events should be(List(MoveToLobby.make[IO](roomId, List(nickname)).unsafeRunSync()))
+        ctx2.events should be(List(MoveToLobby.make[IO](roomId, List(nickname2)).unsafeRunSync()))
+        ctx.eventsSinceDisconnect should be(Some(List(MoveToLobby.make[IO](roomId, List(nickname)).unsafeRunSync())))
+        ctx2.eventsSinceDisconnect should be(Some(List(MoveToLobby.make[IO](roomId, List(nickname2)).unsafeRunSync())))
       }
     }
   }
@@ -302,23 +305,28 @@ class OutgoingManagerSpec extends WordSpec with Matchers with ScalaCheckProperty
 
         outgoingManager.add(nickname, userQueue).unsafeRunSync()
         outgoingManager.disconnected(nickname).unsafeRunSync()
-        outgoingManager.send(nickname, PartyApproved).unsafeRunSync()
-        outgoingManager.send(nickname, PartyApproved).unsafeRunSync()
-        outgoingManager.send(nickname, PartyApproved).unsafeRunSync()
-        outgoingManager.send(nickname, PartyApproved).unsafeRunSync()
+        outgoingManager.send(nickname, PartyApproved.make[IO].unsafeRunSync()).unsafeRunSync()
+        outgoingManager.send(nickname, PartyApproved.make[IO].unsafeRunSync()).unsafeRunSync()
+        outgoingManager.send(nickname, PartyApproved.make[IO].unsafeRunSync()).unsafeRunSync()
+        outgoingManager.send(nickname, PartyApproved.make[IO].unsafeRunSync()).unsafeRunSync()
 
         outgoingManager.reconnect(nickname, userQueueReconnect).unsafeRunSync()
 
         val ctx = ref.get.unsafeRunSync().find(_.nickname === nickname).get
 
-        ctx.events should be(List(PartyApproved, PartyApproved, PartyApproved, PartyApproved))
+        ctx.events should be(
+          List(
+            PartyApproved.make[IO].unsafeRunSync(),
+            PartyApproved.make[IO].unsafeRunSync(),
+            PartyApproved.make[IO].unsafeRunSync(),
+            PartyApproved.make[IO].unsafeRunSync()))
         ctx.eventsSinceDisconnect should be(None)
 
         userQueue.tryDequeue1.unsafeRunSync() should be(None)
-        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved))
-        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved))
-        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved))
-        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved))
+        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved.make[IO].unsafeRunSync()))
+        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved.make[IO].unsafeRunSync()))
+        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved.make[IO].unsafeRunSync()))
+        userQueueReconnect.tryDequeue1.unsafeRunSync() should be(Some(PartyApproved.make[IO].unsafeRunSync()))
       }
     }
   }

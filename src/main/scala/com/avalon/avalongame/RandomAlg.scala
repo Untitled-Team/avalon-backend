@@ -3,6 +3,7 @@ package com.avalon.avalongame
 import cats.Eq
 import cats.effect.Sync
 import cats.implicits._
+import io.chrisdavenport.fuuid.FUUID
 
 import scala.util.control.NoStackTrace
 
@@ -10,6 +11,7 @@ trait RandomAlg[F[_]] {
   def shuffle[A](l: List[A]): F[List[A]]
   def randomGet[A](l: List[A]): F[A] //this should be NonEmptyList
   def clockwise[A: Eq](previous: A, l: List[A]): F[A]
+  def fuuid: F[FUUID]
 }
 
 object RandomAlg {
@@ -25,5 +27,7 @@ object RandomAlg {
       val nextValue = l.dropWhile(_ =!= previous).drop(1).headOption orElse l.headOption
       F.fromOption(nextValue, EmptyListFound)
     }
+
+    def fuuid: F[FUUID] = FUUID.randomFUUID[F]
   }
 }

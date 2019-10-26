@@ -9,6 +9,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import Room._
 import cats.Eq
 import cats.effect.concurrent.MVar
+import io.chrisdavenport.fuuid.FUUID
 
 class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with enumeratum.ScalacheckInstances {
 
@@ -19,6 +20,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
     override def shuffle[A](l: List[A]): IO[List[A]] = IO.pure(l)
     override def randomGet[A](l: List[A]): IO[A] = IO(l.head) //oops
     override def clockwise[A: Eq](previous: A, l: List[A]): IO[A] = IO(l.head)
+    def fuuid: IO[FUUID] = ???
   }
 
   "addUser" should {

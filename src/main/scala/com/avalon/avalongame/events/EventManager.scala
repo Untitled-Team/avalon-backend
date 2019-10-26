@@ -7,8 +7,10 @@ import cats.effect._
 import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect.implicits._
 import cats.temp.par._
+import com.avalon.avalongame.RandomAlg
 import com.avalon.avalongame.common._
 import com.avalon.avalongame.room._
+import io.chrisdavenport.fuuid._
 import fs2._
 import fs2.concurrent.Queue
 
@@ -32,7 +34,8 @@ object EventManager {
   case object NoContext extends RuntimeException with NoStackTrace
 
   private[events] def buildOutgoing[F[_]: Par](roomManager: RoomManager[F],
-                                               outgoingRef: Ref[F, Map[RoomId, OutgoingManager[F]]])(implicit F: Concurrent[F]): EventManager[F] =
+                                               outgoingRef: Ref[F, Map[RoomId, OutgoingManager[F]]])
+                                              (implicit F: Concurrent[F], R: RandomAlg[F]): EventManager[F] =
     new EventManager[F] {
         //it's possible we could have two rooms with same Id, but we don't care right now.
         def interpret(respond: Queue[F, OutgoingEvent], events: Stream[F, IncomingEvent]): F[Unit] =
@@ -57,17 +60,17 @@ object EventManager {
           }.compile.drain
     }
 
-  def build[F[_]: Par](roomManager: RoomManager[F])(implicit F: Concurrent[F]): F[EventManager[F]] =
+  def build[F[_]: Par](roomManager: RoomManager[F])(implicit F: Concurrent[F], R: RandomAlg[F]): F[EventManager[F]] =
     Ref.of[F, Map[RoomId, OutgoingManager[F]]](Map.empty).map { outgoingRef =>
       buildOutgoing(roomManager, outgoingRef)
     }
 
   //this shouldn't need the respond Queue, it should be able tou se the OutgoingManager
-  def handleEvent[F[_]: Par](event: IncomingEvent,
-                             respond: Queue[F, OutgoingEvent],
-                             roomManager: RoomManager[F],
-                             outgoingRef: Ref[F, Map[RoomId, OutgoingManager[F]]],
-                             context: Ref[F, Option[ConnectionContext]])(implicit F: Concurrent[F]): F[Unit] = {
+  def handleEvent[F[_]: Par : RandomAlg](event: IncomingEvent,
+                                         respond: Queue[F, OutgoingEvent],
+                                         roomManager: RoomManager[F],
+                                         outgoingRef: Ref[F, Map[RoomId, OutgoingManager[F]]],
+                                         context: Ref[F, Option[ConnectionContext]])(implicit F: Concurrent[F]): F[Unit] = {
     event match {
       case CreateGame(nickname) => //can't do this if ConnectionContext exists
         (for {
@@ -80,7 +83,8 @@ object EventManager {
           _        <- outgoingRef.update(_ + (roomId -> outgoing))
           _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
           players  <- room.players
-          _        <- outgoing.send(nickname, MoveToLobby(roomId, players))
+          event    <- MoveToLobby.make(roomId, players)
+          _        <- outgoing.send(nickname, event)
         } yield ()).onError {
           case t => Sync[F].delay(println(s"We encountered an error while creating game for $nickname,  ${t.getStackTrace}"))
         }
@@ -93,10 +97,10 @@ object EventManager {
           players  <- room.players
           mapping  <- outgoingRef.get
           outgoing <- Sync[F].fromOption(mapping.get(roomId), NoRoomFoundForChatId)
-          _        <- outgoing.broadcast(nickname, ChangeInLobby(players))
+          _        <- ChangeInLobby.make(players).flatMap(outgoing.broadcast(nickname, _))
           _        <- outgoing.add(nickname, respond)
           _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
-          _        <- outgoing.send(nickname, MoveToLobby(roomId, players))
+          _        <- MoveToLobby.make(roomId, players).flatMap(outgoing.send(nickname, _))
         } yield ()).onError {
           case t => Sync[F].delay(println(s"We encountered an error while joining game for $nickname,  $t"))
         }
@@ -110,8 +114,8 @@ object EventManager {
           _        <- room.removePlayer(ctx.nickname)
           _        <- outgoing.remove(ctx.nickname)
           players  <- room.players
-          _        <- outgoing.sendToAll(ChangeInLobby(players))
-          _        <- respond.enqueue1(GameLeft)
+          _        <- ChangeInLobby.make(players).flatMap(outgoing.sendToAll)
+          _        <- GameLeft.make.flatMap(respond.enqueue1)
           _        <- context.update(_ => None)
         } yield ()).onError {
           case t => Sync[F].delay(println(s"We encountered an error while disconnecting player,  ${t.getStackTrace}"))
@@ -149,10 +153,10 @@ object EventManager {
           result        <- room.playerReady(ctx.nickname)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-          _             <- outgoing.send(ctx.nickname, PlayerReadyAcknowledgement)
+          _             <- PlayerReadyAcknowledgement.make.flatMap(outgoing.send(ctx.nickname, _))
           _ <- result match {
             case AllReady(missionNumber, leader, missions) =>
-              outgoing.sendToAll(TeamAssignmentPhase(missionNumber, leader, missions))
+              TeamAssignmentPhase.make(missionNumber, leader, missions).flatMap(outgoing.sendToAll)
             case _ => F.unit
           }
         } yield ()).onError {
@@ -164,7 +168,7 @@ object EventManager {
           ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
           room          <- roomManager.get(ctx.roomId)
           proposal      <- room.proposeMission(ctx.nickname, players)
-          outgoingEvent =  ProposedParty(proposal.players)
+          outgoingEvent <- ProposedParty.make(proposal.players)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
           _             <- outgoing.sendToAll(outgoingEvent)
@@ -179,12 +183,12 @@ object EventManager {
           voteStatus    <- room.teamVote(ctx.nickname, vote)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-          _             <- outgoing.send(ctx.nickname, PartyApprovalVoteAcknowledgement)
+          _             <- PartyApprovalVoteAcknowledgement.make.flatMap(outgoing.send(ctx.nickname, _))
           _ <- voteStatus match {
             case TeamPhaseStillVoting => F.unit
             case FailedVote(missionLeader, missionNumber, _, missions) =>
-              outgoing.sendToAll(TeamAssignmentPhase(missionNumber, missionLeader, missions))
-            case SuccessfulVote(_) => outgoing.sendToAll(PartyApproved)
+              TeamAssignmentPhase.make(missionNumber, missionLeader, missions).flatMap(outgoing.sendToAll)
+            case SuccessfulVote(_) => PartyApproved.make.flatMap(outgoing.sendToAll)
           }
         } yield ()).onError {
           case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getMessage}"))
@@ -197,11 +201,11 @@ object EventManager {
           voteStatus    <- room.questVote(ctx.nickname, vote)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-          _             <- outgoing.send(ctx.nickname, QuestVoteAcknowledgement)
+          _             <- QuestVoteAcknowledgement.make.flatMap(outgoing.send(ctx.nickname, _))
           _ <- voteStatus match {
             case QuestPhaseStillVoting => F.unit
             case FinishedVote(votes) =>
-              outgoing.sendToAll(PassFailVoteResults(votes.count(_ === QuestVote(true)), votes.count(_ === QuestVote(false))))
+              PassFailVoteResults.make(votes.count(_ === QuestVote(true)), votes.count(_ === QuestVote(false))).flatMap(outgoing.sendToAll)
           }
         } yield ()).onError {
           case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getStackTrace}"))
@@ -214,15 +218,15 @@ object EventManager {
           resultsStatus <- room.questResultsSeen(ctx.nickname)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-          _             <- outgoing.send(ctx.nickname, QuestDisplayAcknowledgement)
+          _             <- QuestDisplayAcknowledgement.make.flatMap(outgoing.send(ctx.nickname, _))
           _ <- resultsStatus match {
             case StillViewingQuestResults => F.unit
             case AssassinVote(assassin, goodGuys) =>
-              outgoing.sendToAll(AssassinVoteOutgoingEvent(assassin, goodGuys.map(_.nickname)))
+              AssassinVoteOutgoingEvent.make(assassin, goodGuys.map(_.nickname)).flatMap(outgoing.sendToAll)
             case BadGuyVictory(assassin, _, merlin, goodGuys, badGuys, winningTeam) =>
-              outgoing.sendToAll(GameOverOutgoingEvent(assassin.nickname, None, merlin.nickname, goodGuys, badGuys, winningTeam))
+              GameOverOutgoingEvent.make(assassin.nickname, None, merlin.nickname, goodGuys, badGuys, winningTeam).flatMap(outgoing.sendToAll)
             case GameContinues(missionLeader, missionNumber, missions) =>
-              outgoing.sendToAll(TeamAssignmentPhase(missionNumber, missionLeader, missions))
+              TeamAssignmentPhase.make(missionNumber, missionLeader, missions).flatMap(outgoing.sendToAll)
           }
         } yield ()).onError {
           case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getStackTrace}"))
@@ -235,7 +239,7 @@ object EventManager {
           gameOver <- room.assassinVote(ctx.nickname, guess)
           mapping  <- outgoingRef.get
           outgoing <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-          outgoingEvent = GameOverOutgoingEvent(
+          outgoingEvent <- GameOverOutgoingEvent.make(
             gameOver.assassin.nickname,
             gameOver.assassinGuess,
             gameOver.merlin.nickname,

@@ -7,6 +7,9 @@ import com.avalon.avalongame.common._
 import com.avalon.avalongame.room._
 import com.mrdziuban.ScalacheckMagnolia._
 import EventEncoders._
+import cats.Eq
+import io.chrisdavenport.fuuid.FUUID
+import io.chrisdavenport.fuuid.circe._
 import io.circe._
 import io.circe.generic.extras.semiauto.deriveUnwrappedEncoder
 import io.circe.syntax._
@@ -17,6 +20,16 @@ import org.scalatest.{FunSuite, Matchers, Status => _}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with enumeratum.ScalacheckInstances {
+  val constant = FUUID.randomFUUID[IO].unsafeRunSync()
+
+  implicit val R: RandomAlg[IO] = new RandomAlg[IO] {
+    def shuffle[A](l: List[A]): IO[List[A]] = ???
+    def randomGet[A](l: List[A]): IO[A] = ???
+    def clockwise[A: Eq](previous: A, l: List[A]): IO[A] = ???
+    def fuuid: IO[FUUID] = IO.pure(constant)
+  }
+
+  implicit val fuuidArb: Arbitrary[FUUID] = Arbitrary(Gen.const(FUUID.randomFUUID[IO].unsafeRunSync()))
 
   implicit val missionsArb: Arbitrary[Missions] = Arbitrary {
     Gen.chooseNum[Int](5, 10).map(n => IO.fromEither(Missions.fromPlayers(n)).unsafeRunSync())
@@ -27,7 +40,7 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       badGuys <- Gen.listOf[BadPlayerRole](Arbitrary.arbitrary[BadPlayerRole])
       role <- Arbitrary.arbitrary[Role]
       charRole = CharacterRole.fromRole(role, badGuys)
-    } yield PlayerInfo(charRole.character, charRole.badGuys)
+    } yield PlayerInfo.make[IO](charRole.character, charRole.badGuys).unsafeRunSync()
   }
 
   test("make sure we can encode GameCreated event") {
@@ -47,14 +60,14 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
   }
 
   test("make sure we can encode GameLeft event") {
-    gameLeftJson should be(OutgoingEventEncoder.encoder(GameLeft))
+    gameLeftJson should be(OutgoingEventEncoder.encoder(GameLeft.make[IO].unsafeRunSync()))
   }
 
   test("make sure we can encode PlayerReadyAcknowledgement event") {
     val playerReadyAckJson: Json =
-      Json.obj("event" := "PlayerReadyAcknowledgement")
+      Json.obj("event" := "PlayerReadyAcknowledgement", "id" := constant)
 
-    playerReadyAckJson should be(OutgoingEventEncoder.encoder(PlayerReadyAcknowledgement))
+    playerReadyAckJson should be(OutgoingEventEncoder.encoder(PlayerReadyAcknowledgement.make[IO].unsafeRunSync()))
   }
 
   test("make sure we can encode PlayerInfoEvent event") {
@@ -83,20 +96,21 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
 
   test("make sure we can encode PartyApprovalVoteAcknowledgement event") {
     val playerApprovalVoteAckJson: Json =
-      Json.obj("event" := "PartyApprovalVoteAcknowledgement")
+      Json.obj("event" := "PartyApprovalVoteAcknowledgement", "id" := constant)
 
-    playerApprovalVoteAckJson should be(OutgoingEventEncoder.encoder(PartyApprovalVoteAcknowledgement))
+    playerApprovalVoteAckJson should be(OutgoingEventEncoder.encoder(PartyApprovalVoteAcknowledgement.make[IO].unsafeRunSync()))
   }
 
+  //fix this!!!!!
   test("make sure we can encode PartyApproved event") {
-    partyApprovedJson should be(OutgoingEventEncoder.encoder(PartyApproved))
+    partyApprovedJson should be(OutgoingEventEncoder.encoder(PartyApproved.make[IO].unsafeRunSync()))
   }
 
   test("make sure we can encode QuestVoteAcknowledgement event") {
     val questVoteAckJson: Json =
-      Json.obj("event" := "QuestVoteAcknowledgement")
+      Json.obj("event" := "QuestVoteAcknowledgement", "id" := constant)
 
-    questVoteAckJson should be(OutgoingEventEncoder.encoder(QuestVoteAcknowledgement))
+    questVoteAckJson should be(OutgoingEventEncoder.encoder(QuestVoteAcknowledgement.make[IO].unsafeRunSync()))
   }
 
   test("make sure we can encode PassFailVoteResults event") {
@@ -109,9 +123,9 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
 
   test("make sure we can encode QuestDisplayAcknowledgement event") {
     val questDisplayAckJson: Json =
-      Json.obj("event" := "QuestDisplayAcknowledgement")
+      Json.obj("event" := "QuestDisplayAcknowledgement", "id" := constant)
 
-    questDisplayAckJson should be(OutgoingEventEncoder.encoder(QuestDisplayAcknowledgement))
+    questDisplayAckJson should be(OutgoingEventEncoder.encoder(QuestDisplayAcknowledgement.make[IO].unsafeRunSync()))
   }
 
   test("make sure we can encode AssassinVoteOutgoingEvent event") {
@@ -134,23 +148,26 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     Json.obj(
       "event" := "MoveToLobby",
       "roomId" := moveToLobby.roomId.value,
-      "players" := moveToLobby.players
+      "players" := moveToLobby.players,
+      "id" := moveToLobby.id
     )
 
   def changeInLobbyJson(joinedRoom: ChangeInLobby): Json =
     Json.obj(
       "event" := "ChangeInLobby",
-      "players" := joinedRoom.players
+      "players" := joinedRoom.players,
+      "id" := joinedRoom.id
     )
 
   val gameLeftJson: Json =
-    Json.obj("event" := "GameLeft")
+    Json.obj("event" := "GameLeft", "id" := constant.show)
 
   def playerRoleEventJson(playerRoleEvent: PlayerInfo): Json =
     Json.obj(
       "event" := "PlayerInfo",
       "character" := playerRoleEvent.character,
-      "badGuys" := playerRoleEvent.badGuys.map(_.map(_.nickname))
+      "badGuys" := playerRoleEvent.badGuys.map(_.map(_.nickname)),
+      "id" := playerRoleEvent.id
     )
 
   def teamAssignmentEventJson(missionProposalEvent: TeamAssignmentPhase): Json =
@@ -158,23 +175,26 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "event" := "TeamAssignmentPhase",
       "missionNumber" := missionProposalEvent.missionNumber,
       "missionLeader" := missionProposalEvent.missionLeader,
-      "missions" := missionProposalEvent.missions
+      "missions" := missionProposalEvent.missions,
+      "id" := missionProposalEvent.id
     )
 
   def proposedPartyJson(proposedParty: ProposedParty): Json =
     Json.obj(
       "event" := "ProposedParty",
-      "proposedParty" := proposedParty.proposedParty
+      "proposedParty" := proposedParty.proposedParty,
+      "id" := proposedParty.id
     )
 
   val partyApprovedJson: Json =
-    Json.obj("event" := "PartyApproved")
+    Json.obj("event" := "PartyApproved", "id" := constant.show)
 
   def passFailVoteResultsJson(passFailVoteResults: PassFailVoteResults): Json =
     Json.obj(
       "event" := "PassFailVoteResults",
       "passVotes" := passFailVoteResults.passVotes,
-      "failVotes" := passFailVoteResults.failVotes
+      "failVotes" := passFailVoteResults.failVotes,
+      "id" := passFailVoteResults.id
     )
 
   def assassinVoteJson(assassinVote: AssassinVoteOutgoingEvent): Json =
@@ -182,7 +202,8 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "event" := "AssassinVote",
       "assassinVoteData" := Json.obj(
         "assassin" := assassinVote.assassin,
-        "goodGuys" := assassinVote.goodGuys
+        "goodGuys" := assassinVote.goodGuys,
+        "id" := assassinVote.id
       )
     )
 
@@ -195,7 +216,8 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
         "merlin" := gameOver.merlin,
         "goodGuys" := gameOver.goodGuys.map(_.nickname.value),
         "badGuys" := gameOver.badGuys.map(_.nickname.value),
-        "winningTeam" := gameOver.winningTeam
+        "winningTeam" := gameOver.winningTeam,
+        "id" := gameOver.id
       )
     )
 }

@@ -18,7 +18,7 @@ import scala.concurrent.ExecutionContext.global
 object AvalongameServer {
 
   def stream[F[_]: ConcurrentEffect : Par](implicit T: Timer[F], C: ContextShift[F]): Stream[F, Nothing] = {
-    val randomAlg = RandomAlg.build[F]
+    implicit val randomAlg = RandomAlg.build[F]
     val roomIdGen = RoomIdGenerator.build[F]
 
     for {
