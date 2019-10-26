@@ -5,6 +5,7 @@ import cats.effect.{ContextShift, IO}
 import com.avalon.avalongame.common._
 import com.avalon.avalongame.RandomAlg
 import com.mrdziuban.ScalacheckMagnolia._
+import io.chrisdavenport.fuuid.FUUID
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
@@ -16,6 +17,7 @@ class RoomManagerSpec extends FunSuite with Matchers with ScalaCheckPropertyChec
     override def shuffle[A](l: List[A]): IO[List[A]] = IO.pure(l)
     override def randomGet[A](l: List[A]): IO[A] = IO(l.head) //oops
     override def clockwise[A: Eq](previous: A, l: List[A]): IO[A] = IO(l.head)
+    def fuuid: IO[FUUID] = ???
   }
 
   test("Create and update the room manager, alongside some room tests") {

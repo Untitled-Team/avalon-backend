@@ -2,6 +2,8 @@ package com.avalon.avalongame
 package events
 
 import com.avalon.avalongame.common._
+import io.chrisdavenport.fuuid.circe._
+import io.chrisdavenport.fuuid.FUUID
 import io.circe.generic.semiauto._
 import io.circe.syntax._
 import io.circe.{Encoder, _}
@@ -21,7 +23,7 @@ object JoinGame {
 
 case object LeaveGame extends IncomingEvent
 
-case class Reconnect(nickname: Nickname, roomId: RoomId) extends IncomingEvent
+case class Reconnect(nickname: Nickname, roomId: RoomId, lastMessageId: FUUID) extends IncomingEvent
 object Reconnect {
   implicit val decoder: Decoder[Reconnect] = deriveDecoder
 }

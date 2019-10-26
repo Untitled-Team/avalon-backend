@@ -8,6 +8,7 @@ import com.avalon.avalongame.RandomAlg
 import com.avalon.avalongame.common._
 import com.avalon.avalongame.events.EventManager.NoContext
 import com.avalon.avalongame.room._
+import io.chrisdavenport.fuuid._
 import fs2._
 import fs2.concurrent.Queue
 import org.scalatest.{FunSuite, Matchers, WordSpec}
@@ -20,6 +21,13 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
 
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.Implicits.global)
   implicit val t: Timer[IO] = IO.timer(scala.concurrent.ExecutionContext.Implicits.global)
+  implicit val R: RandomAlg[IO] = new RandomAlg[IO] {
+    val constant = FUUID.randomFUUID[IO].unsafeRunSync()
+    def shuffle[A](l: List[A]): IO[List[A]] = ???
+    def randomGet[A](l: List[A]): IO[A] = ???
+    def clockwise[A: Eq](previous: A, l: List[A]): IO[A] = ???
+    def fuuid: IO[FUUID] = IO.pure(constant)
+  }
 
   "CreateGame" should {
 
@@ -80,7 +88,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).attempt.unsafeRunSync()
 
-          userQueue.tryDequeue1.unsafeRunSync() should be(Some(MoveToLobby(roomId, mockRoom.players.unsafeRunSync())))
+          userQueue.tryDequeue1.unsafeRunSync() should be(Some(MoveToLobby.make[IO](roomId, mockRoom.players.unsafeRunSync()).unsafeRunSync()))
         }
       }
     }
@@ -166,8 +174,8 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           ).unsafeRunSync()
 
 
-          sendRef.get.unsafeRunSync() should be(Some(MoveToLobby(roomId, mockRoom.players.unsafeRunSync())))
-          broadcastRef.get.unsafeRunSync() should be(Some(ChangeInLobby(mockRoom.players.unsafeRunSync())))
+          sendRef.get.unsafeRunSync() should be(Some(MoveToLobby.make[IO](roomId, mockRoom.players.unsafeRunSync()).unsafeRunSync()))
+          broadcastRef.get.unsafeRunSync() should be(Some(ChangeInLobby.make[IO](mockRoom.players.unsafeRunSync()).unsafeRunSync()))
         }
       }
     }
@@ -295,10 +303,10 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendToAllRef.get.unsafeRunSync() should be(Some(ChangeInLobby(Nil)))
+          sendToAllRef.get.unsafeRunSync() should be(Some(ChangeInLobby.make[IO](Nil).unsafeRunSync()))
           outgoingRemoveRef.get.unsafeRunSync() should be(Some(()))
           roomRemoveRef.get.unsafeRunSync() should be(Some(()))
-          userQueue.tryDequeue1.unsafeRunSync() should be(Some(GameLeft))
+          userQueue.tryDequeue1.unsafeRunSync() should be(Some(GameLeft.make[IO].unsafeRunSync()))
         }
       }
     }
@@ -332,7 +340,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
           EventManager.handleEvent[IO](
-            Reconnect(nickname1, roomId),
+            Reconnect(nickname1, roomId, FUUID.randomFUUID[IO].unsafeRunSync()),
             userQueue,
             mockRoomManager,
             outgoingRef,
@@ -362,7 +370,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
           EventManager.handleEvent[IO](
-            Reconnect(nickname1, roomId),
+            Reconnect(nickname1, roomId, FUUID.randomFUUID[IO].unsafeRunSync()),
             userQueue,
             mockRoomManager,
             outgoingRef,
@@ -381,7 +389,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
 
           val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager {
-            override def reconnect(nickname: Nickname, respond: Queue[IO, OutgoingEvent]): IO[Unit] = reconnectRef.set(Some(nickname))
+            override def reconnect(nickname: Nickname, id: FUUID, respond: Queue[IO, OutgoingEvent]): IO[Unit] = reconnectRef.set(Some(nickname))
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
@@ -400,7 +408,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
           EventManager.handleEvent[IO](
-            Reconnect(nickname1, roomId),
+            Reconnect(nickname1, roomId, FUUID.randomFUUID[IO].unsafeRunSync()),
             userQueue,
             mockRoomManager,
             outgoingRef,
@@ -452,7 +460,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           ).unsafeRunSync()
 
           sendToAllUserSpecificRef.get.unsafeRunSync() should be(
-            Some(PlayerInfo(Assassin, Some(List(BadPlayerRole(nickname1, Assassin))))))
+            Some(PlayerInfo.make[IO](Assassin, Some(List(BadPlayerRole(nickname1, Assassin)))).unsafeRunSync()))
         }
       }
     }
@@ -494,7 +502,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendRef.get.unsafeRunSync() should be(Some(PlayerReadyAcknowledgement))
+          sendRef.get.unsafeRunSync() should be(Some(PlayerReadyAcknowledgement.make[IO].unsafeRunSync()))
         }
       }
     }
@@ -536,9 +544,9 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendRef.get.unsafeRunSync() should be(Some(PlayerReadyAcknowledgement))
+          sendRef.get.unsafeRunSync() should be(Some(PlayerReadyAcknowledgement.make[IO].unsafeRunSync()))
           sendToAllRef.get.unsafeRunSync() should be(
-            Some(TeamAssignmentPhase(mockAllReady.missionNumber, mockAllReady.missionLeader, mockAllReady.missions)))
+            Some(TeamAssignmentPhase.make[IO](mockAllReady.missionNumber, mockAllReady.missionLeader, mockAllReady.missions).unsafeRunSync()))
         }
       }
     }
@@ -582,7 +590,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendRef.get.unsafeRunSync() should be(Some(PartyApprovalVoteAcknowledgement))
+          sendRef.get.unsafeRunSync() should be(Some(PartyApprovalVoteAcknowledgement.make[IO].unsafeRunSync()))
         }
       }
     }
@@ -626,9 +634,9 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendRef.get.unsafeRunSync() should be(Some(PartyApprovalVoteAcknowledgement))
+          sendRef.get.unsafeRunSync() should be(Some(PartyApprovalVoteAcknowledgement.make[IO].unsafeRunSync()))
           sendToAllRef.get.unsafeRunSync() should be(
-            Some(TeamAssignmentPhase(1, nickname1, missions)))
+            Some(TeamAssignmentPhase.make[IO](1, nickname1, missions).unsafeRunSync()))
         }
       }
     }
@@ -672,8 +680,8 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendRef.get.unsafeRunSync() should be(Some(PartyApprovalVoteAcknowledgement))
-          sendToAllRef.get.unsafeRunSync() should be(Some(PartyApproved))
+          sendRef.get.unsafeRunSync() should be(Some(PartyApprovalVoteAcknowledgement.make[IO].unsafeRunSync()))
+          sendToAllRef.get.unsafeRunSync() should be(Some(PartyApproved.make[IO].unsafeRunSync()))
         }
       }
     }
@@ -717,7 +725,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           ).unsafeRunSync()
 
           sendToAllRef.get.unsafeRunSync() should be(
-            Some(ProposedParty(List(nickname1))))
+            Some(ProposedParty.make[IO](List(nickname1)).unsafeRunSync()))
         }
       }
     }
@@ -760,7 +768,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendRef.get.unsafeRunSync() should be(Some(QuestVoteAcknowledgement))
+          sendRef.get.unsafeRunSync() should be(Some(QuestVoteAcknowledgement.make[IO].unsafeRunSync()))
         }
       }
     }
@@ -803,9 +811,9 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendRef.get.unsafeRunSync() should be(Some(QuestVoteAcknowledgement))
+          sendRef.get.unsafeRunSync() should be(Some(QuestVoteAcknowledgement.make[IO].unsafeRunSync()))
           sendToAllRef.get.unsafeRunSync() should be(
-            Some(PassFailVoteResults(1, 1)))
+            Some(PassFailVoteResults.make[IO](1, 1).unsafeRunSync()))
         }
       }
     }
@@ -845,7 +853,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendRef.get.unsafeRunSync() should be(Some(QuestDisplayAcknowledgement))
+          sendRef.get.unsafeRunSync() should be(Some(QuestDisplayAcknowledgement.make[IO].unsafeRunSync()))
         }
       }
     }
@@ -885,9 +893,9 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendRef.get.unsafeRunSync() should be(Some(QuestDisplayAcknowledgement))
+          sendRef.get.unsafeRunSync() should be(Some(QuestDisplayAcknowledgement.make[IO].unsafeRunSync()))
           sendToAllRef.get.unsafeRunSync() should be(
-            Some(AssassinVoteOutgoingEvent(nickname1, Nil)))
+            Some(AssassinVoteOutgoingEvent.make[IO](nickname1, Nil).unsafeRunSync()))
         }
       }
     }
@@ -929,9 +937,9 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendRef.get.unsafeRunSync() should be(Some(QuestDisplayAcknowledgement))
+          sendRef.get.unsafeRunSync() should be(Some(QuestDisplayAcknowledgement.make[IO].unsafeRunSync()))
           sendToAllRef.get.unsafeRunSync() should be(
-            Some(GameOverOutgoingEvent(nickname1, None, nickname2, Nil, Nil, BadGuys)))
+            Some(GameOverOutgoingEvent.make[IO](nickname1, None, nickname2, Nil, Nil, BadGuys).unsafeRunSync()))
         }
       }
     }
@@ -974,9 +982,9 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             ctxRef
           ).unsafeRunSync()
 
-          sendRef.get.unsafeRunSync() should be(Some(QuestDisplayAcknowledgement))
+          sendRef.get.unsafeRunSync() should be(Some(QuestDisplayAcknowledgement.make[IO].unsafeRunSync()))
           sendToAllRef.get.unsafeRunSync() should be(
-            Some(TeamAssignmentPhase(2, nickname1, missions)))
+            Some(TeamAssignmentPhase.make[IO](2, nickname1, missions).unsafeRunSync()))
         }
       }
     }
@@ -1019,7 +1027,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           ).unsafeRunSync()
 
           sendToAllRef.get.unsafeRunSync() should be(
-            Some(GameOverOutgoingEvent(nickname1, None, nickname2, Nil, Nil, BadGuys)))
+            Some(GameOverOutgoingEvent.make[IO](nickname1, None, nickname2, Nil, Nil, BadGuys).unsafeRunSync()))
         }
       }
     }
