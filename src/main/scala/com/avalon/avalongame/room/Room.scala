@@ -26,8 +26,9 @@ trait Room[F[_]] {
 
 object Room {
 
+  //this could all be simplified with sempahore(1)
   private[room] def buildPrivate[F[_]](randomAlg: RandomAlg[F],
-                                       roomId: RoomId, //this could maybe all be simplified with a Semaphore of size 1
+                                       roomId: RoomId,
                                        mvar: MVar[F, InternalRoom])(implicit F: Concurrent[F]): Room[F] =
       new Room[F] {
         def state: F[Option[GameState]] = mvar.read.map(_.gameRepresentation.map(_.state))

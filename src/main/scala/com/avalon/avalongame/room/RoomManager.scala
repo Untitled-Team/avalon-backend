@@ -9,13 +9,10 @@ import com.avalon.avalongame.common._
 trait RoomManager[F[_]] {
   def create: F[RoomId]
   def get(roomId: RoomId): F[Room[F]]
-//  def addUser(roomId: RoomId, user: User): F[Unit]
-//  def userEvents(user: User): Stream[F, Event]
 }
 
 object RoomManager {
-  //timeouts on get/reads?
-  //could back this by mules and have them auto expire if not updated in a while
+  //need expiration for rooms
   def build[F[_]](randomAlg: RandomAlg[F], roomIdGenerator: RoomIdGenerator[F])(implicit F: Concurrent[F]): F[RoomManager[F]] =
     Ref.of[F, Map[RoomId, Room[F]]](Map.empty).map { ref =>
       new RoomManager[F] {
