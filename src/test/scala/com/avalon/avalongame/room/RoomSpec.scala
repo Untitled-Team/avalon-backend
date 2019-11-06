@@ -69,6 +69,33 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
       }
     }
 
+    "Fail if we try to add more than 10 users. " in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+        val user6 = Nickname("zsdaf")
+        val user7 = Nickname("zdsf")
+        val user8 = Nickname("sdfs")
+        val user9 = Nickname("Carzxcvsdfter")
+        val user10 = Nickname("asdfsaf")
+
+        val internalRoom: MVar[IO, InternalRoom] =
+          MVar.of[IO, InternalRoom] {
+            InternalRoom(
+              List(user1, user2, user3, user4, user5, user6, user7, user8, user9, user10), None)
+          }.unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, internalRoom)
+
+        room.players.unsafeRunSync().size should be(10)
+        room.addUser(Nickname("Failed")).attempt.unsafeRunSync() should be(Left(RoomIsFull(roomId)))
+      }
+    }
+
     "Properly add users" in {
       forAll { (roomId: RoomId, config: GameConfig) =>
 

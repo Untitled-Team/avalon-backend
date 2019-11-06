@@ -37,7 +37,9 @@ object Room {
 
         def addUser(player: Nickname): F[Unit] =
           mvar.take.flatMap { room =>
-            if (room.players.contains(player))
+            if (room.players.size >= 10)
+              F.raiseError(RoomIsFull(roomId))
+            else if (room.players.contains(player))
               mvar.put(room) >> F.raiseError(NicknameAlreadyInUse(player))
             else if(room.gameRepresentation.nonEmpty)
               mvar.put(room) >> F.raiseError(GameHasStarted)
