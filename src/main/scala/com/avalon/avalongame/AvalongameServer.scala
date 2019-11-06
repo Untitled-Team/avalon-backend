@@ -25,18 +25,8 @@ object AvalongameServer {
       roomManager <- Stream.eval(RoomManager.build[F](randomAlg, roomIdGen))
       eventManager <- Stream.eval(EventManager.build[F](roomManager))
 
-      // Combine Service Routes into an HttpApp.
-      // Can also be done via a Router if you
-      // want to extract a segments not checked
-      // in the underlying routes.
-      httpApp = AvalongameRoutes.gameRoutesWS[F](eventManager)
-        .orNotFound
-//        AvalongameRoutes.helloWorldRoutes[F](helloWorldAlg) <+>
-//        AvalongameRoutes.jokeRoutes[F](jokeAlg) <+>
-//        AvalongameRoutes.websocketRoutes[F](jokeAlg) <+>
+      httpApp = AvalongameRoutes.gameRoutesWS[F](eventManager).orNotFound
 
-
-      // With Middlewares in place
       finalHttpApp = Logger.httpApp(true, true)(httpApp)
 
       exitCode <- BlazeServerBuilder[F]
