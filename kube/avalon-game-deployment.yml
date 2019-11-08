@@ -16,23 +16,31 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: avalon-back-end
-  namespace: default
+  creationTimestamp: null
   labels:
     app: avalon-back-end
+  name: avalon-back-end
+  namespace: default
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: avalon-back-end
+  strategy: {}
   template:
     metadata:
+      annotations:
+        linkerd.io/inject: enabled
+      creationTimestamp: null
       labels:
         app: avalon-back-end
     spec:
       containers:
-        - name: avalon-back-end
-          image: tbrown1979/avalon-game:$LATEST_TAG
-          ports:
-            - containerPort: 8000
-              name: http
+      - image: tbrown1979/avalon-game:$LATEST_TAG
+        name: avalon-back-end
+        ports:
+        - containerPort: 8000
+          name: http
+        resources: {}
+status: {}
+---
