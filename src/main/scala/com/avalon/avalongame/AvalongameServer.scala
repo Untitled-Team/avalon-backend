@@ -13,8 +13,6 @@ import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.middleware.Logger
 import fs2.Stream
 
-import scala.concurrent.ExecutionContext.global
-
 object AvalongameServer {
 
   def stream[F[_]: ConcurrentEffect : Par](implicit T: Timer[F], C: ContextShift[F]): Stream[F, Nothing] = {
@@ -27,12 +25,19 @@ object AvalongameServer {
 
       httpApp = AvalongameRoutes.gameRoutesWS[F](eventManager).orNotFound
 
+      healthApp = Health.health[F].orNotFound
+
       finalHttpApp = Logger.httpApp(true, true)(httpApp)
 
       exitCode <- BlazeServerBuilder[F]
         .bindHttp(8000, "0.0.0.0")
         .withHttpApp(finalHttpApp)
         .serve
+          .concurrently {
+             BlazeServerBuilder[F].bindHttp(9090, "0.0.0.0")
+               .withHttpApp(healthApp)
+               .serve
+          }
     } yield exitCode
   }.drain
 }

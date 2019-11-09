@@ -12,6 +12,10 @@ spec:
       protocol: TCP
       port: 8000
       targetPort: 8000
+    - name: metrics
+      protocol: TCP
+      port: 9090
+      targetPort: 9090
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -41,6 +45,8 @@ spec:
         ports:
         - containerPort: 8000
           name: http
+        - containerPort: 9090
+          name: metrics
         resources: {}
 status: {}
 ---

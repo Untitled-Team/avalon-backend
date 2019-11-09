@@ -74,6 +74,7 @@ dockerfile in docker := {
       "-jar",
       artifactTargetPath)
     expose(8000, 80)
+    expose(9090, 9090)
   }
 }
 
