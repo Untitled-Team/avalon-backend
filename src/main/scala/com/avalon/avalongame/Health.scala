@@ -12,6 +12,7 @@ object Health {
 
     HttpRoutes.of[F] {
       case GET -> Root / "metrics" =>
+        println("Being scraped")
         Ok("")
     }
   }
