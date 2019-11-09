@@ -10,8 +10,10 @@ import fs2.Stream
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.implicits._
 import org.http4s.server.blaze.BlazeServerBuilder
-import org.http4s.server.middleware.Logger
+import org.http4s.server.middleware.{Logger, Metrics}
 import fs2.Stream
+import io.chrisdavenport.epimetheus.CollectorRegistry
+import io.chrisdavenport.epimetheus.http4s.EpimetheusOps
 
 object AvalongameServer {
 
@@ -20,12 +22,14 @@ object AvalongameServer {
     val roomIdGen = RoomIdGenerator.build[F]
 
     for {
-      roomManager <- Stream.eval(RoomManager.build[F](randomAlg, roomIdGen))
+      roomManager  <- Stream.eval(RoomManager.build[F](randomAlg, roomIdGen))
       eventManager <- Stream.eval(EventManager.build[F](roomManager))
+      cr           <- Stream.eval(CollectorRegistry.buildWithDefaults[F])
+      metricOps    <- Stream.eval(EpimetheusOps.server[F](cr))
 
-      httpApp = AvalongameRoutes.gameRoutesWS[F](eventManager).orNotFound
+      httpApp = Metrics(metricOps)(AvalongameRoutes.gameRoutesWS[F](eventManager)).orNotFound
 
-      healthApp = Health.health[F].orNotFound
+      healthApp = Health.health[F](cr).orNotFound
 
       finalHttpApp = Logger.httpApp(true, true)(httpApp)
 
