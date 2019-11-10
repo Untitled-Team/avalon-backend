@@ -84,7 +84,7 @@ object Room {
               enum <-
                 if (updatedState.playersReady.size === room.players.size)
                   (for {
-                    missionLeader <- F.fromOption(room.players.headOption, NotEnoughPlayers(room.players.size))
+                    missionLeader <- randomAlg.randomGet(room.players)
                     updatedRepr   =  repr.copy(state = MissionProposing(1, missionLeader))
                     _             <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
                   } yield AllReady(1, missionLeader, repr.missions)).widen[PlayerReadyEnum]
