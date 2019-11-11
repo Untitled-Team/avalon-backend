@@ -416,7 +416,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val proposal = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
 
-        proposal should be(Right(MissionProposal(1, user1, users.take(2))))
+        proposal should be(Right(MissionProposal(1, user1, users.take(2), 4)))
       }
     }
   }
@@ -453,7 +453,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val proposal = room.teamVote(user1, TeamVote(false)).attempt.unsafeRunSync()
 
-        proposal should be(Left(InvalidStateTransition(MissionProposing(1, user1), "teamVote", user1)))
+        proposal should be(Left(InvalidStateTransition(MissionProposing(1, user1, 5), "teamVote", user1)))
       }
     }
 
@@ -471,7 +471,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
         val gr = GameRepresentation(
-          MissionVoting(1, user1, List(user1, user2), Nil),
+          MissionVoting(1, user1, List(user1, user2), Nil, 5),
           missions,
           List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
           List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
@@ -483,7 +483,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val proposal = room.teamVote(user1, TeamVote(false)).unsafeRunSync()
 
-        proposal should be(TeamPhaseStillVoting)
+        proposal should be(Right(TeamPhaseStillVoting))
       }
     }
 
@@ -501,7 +501,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
         val gr = GameRepresentation(
-          MissionVoting(1, user1, List(user1, user2), Nil),
+          MissionVoting(1, user1, List(user1, user2), Nil, 5),
           missions,
           List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
           List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
@@ -527,11 +527,11 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, user1, votes)).unsafeRunSync()
 
-        result1 should be(TeamPhaseStillVoting)
-        result2 should be(TeamPhaseStillVoting)
-        result3 should be(TeamPhaseStillVoting)
-        result4 should be(TeamPhaseStillVoting)
-        result5 should be(FailedVote(user1, 1, votes, missionsAfterVotes))
+        result1 should be(Right(TeamPhaseStillVoting))
+        result2 should be(Right(TeamPhaseStillVoting))
+        result3 should be(Right(TeamPhaseStillVoting))
+        result4 should be(Right(TeamPhaseStillVoting))
+        result5 should be(Right(FailedVote(user1, 1, votes, missionsAfterVotes)))
       }
     }
 
@@ -549,7 +549,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
         val gr = GameRepresentation(
-          MissionVoting(1, user1, List(user1, user2), Nil),
+          MissionVoting(1, user1, List(user1, user2), Nil, 5),
           missions,
           List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
           List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
@@ -572,11 +572,11 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           PlayerTeamVote(user4, TeamVote(false)),
           PlayerTeamVote(user5, TeamVote(false)))
 
-        result1 should be(TeamPhaseStillVoting)
-        result2 should be(TeamPhaseStillVoting)
-        result3 should be(TeamPhaseStillVoting)
-        result4 should be(TeamPhaseStillVoting)
-        result5 should be(SuccessfulVote(votes))
+        result1 should be(Right(TeamPhaseStillVoting))
+        result2 should be(Right(TeamPhaseStillVoting))
+        result3 should be(Right(TeamPhaseStillVoting))
+        result4 should be(Right(TeamPhaseStillVoting))
+        result5 should be(Right(SuccessfulVote(votes)))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
         repr.missions.one.votes should be(List(FinishedTeamVote(user1, votes)))
@@ -599,7 +599,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
         val gr = GameRepresentation(
-          MissionVoting(1, user1, List(user1, user2), Nil),
+          MissionVoting(1, user1, List(user1, user2), Nil, 5),
           missions,
           List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
           List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy), GoodPlayerRole(user6, NormalGoodGuy)),
@@ -626,12 +626,12 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, user1, votes)).unsafeRunSync()
 
-        result1 should be(TeamPhaseStillVoting)
-        result2 should be(TeamPhaseStillVoting)
-        result3 should be(TeamPhaseStillVoting)
-        result4 should be(TeamPhaseStillVoting)
-        result5 should be(TeamPhaseStillVoting)
-        result6 should be(FailedVote(user1, 1, votes, missionsAfterVotes))
+        result1 should be(Right(TeamPhaseStillVoting))
+        result2 should be(Right(TeamPhaseStillVoting))
+        result3 should be(Right(TeamPhaseStillVoting))
+        result4 should be(Right(TeamPhaseStillVoting))
+        result5 should be(Right(TeamPhaseStillVoting))
+        result6 should be(Right(FailedVote(user1, 1, votes, missionsAfterVotes)))
       }
     }
 
@@ -650,7 +650,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
         val gr = GameRepresentation(
-          MissionVoting(1, user1, List(user1, user2), Nil),
+          MissionVoting(1, user1, List(user1, user2), Nil, 5),
           missions,
           List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
           List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy), GoodPlayerRole(user6, NormalGoodGuy)),
@@ -677,16 +677,90 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val missionsAfterVotes = IO.fromEither(Missions.addFinishedTeamVote(missions, 1, user1, votes)).unsafeRunSync()
 
-        result1 should be(TeamPhaseStillVoting)
-        result2 should be(TeamPhaseStillVoting)
-        result3 should be(TeamPhaseStillVoting)
-        result4 should be(TeamPhaseStillVoting)
-        result5 should be(TeamPhaseStillVoting)
-        result6 should be(FailedVote(user1, 1, votes, missionsAfterVotes))
+        result1 should be(Right(TeamPhaseStillVoting))
+        result2 should be(Right(TeamPhaseStillVoting))
+        result3 should be(Right(TeamPhaseStillVoting))
+        result4 should be(Right(TeamPhaseStillVoting))
+        result5 should be(Right(TeamPhaseStillVoting))
+        result6 should be(Right(FailedVote(user1, 1, votes, missionsAfterVotes)))
 
         val proposal = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
 
-        proposal should be(Right(MissionProposal(1, user1, users.take(2))))
+        proposal should be(Right(MissionProposal(1, user1, users.take(2), 3)))
+      }
+    }
+
+    "Return GameOver when 5 failed votes have happened" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          MissionVoting(1, user1, List(user1, user2), Nil, 5),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.teamVote(user1, TeamVote(true)).unsafeRunSync()
+        room.teamVote(user2, TeamVote(true)).unsafeRunSync()
+        room.teamVote(user3, TeamVote(false)).unsafeRunSync()
+        room.teamVote(user4, TeamVote(false)).unsafeRunSync()
+        room.teamVote(user5, TeamVote(false)).unsafeRunSync()
+
+        val proposal2 = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
+
+        proposal2 should be(Right(MissionProposal(1, user1, users.take(2), 3)))
+
+        room.teamVote(user1, TeamVote(true)).unsafeRunSync()
+        room.teamVote(user2, TeamVote(true)).unsafeRunSync()
+        room.teamVote(user3, TeamVote(false)).unsafeRunSync()
+        room.teamVote(user4, TeamVote(false)).unsafeRunSync()
+        room.teamVote(user5, TeamVote(false)).unsafeRunSync()
+
+        val proposal3 = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
+
+        proposal3 should be(Right(MissionProposal(1, user1, users.take(2), 2)))
+
+        room.teamVote(user1, TeamVote(true)).unsafeRunSync()
+        room.teamVote(user2, TeamVote(true)).unsafeRunSync()
+        room.teamVote(user3, TeamVote(false)).unsafeRunSync()
+        room.teamVote(user4, TeamVote(false)).unsafeRunSync()
+        room.teamVote(user5, TeamVote(false)).unsafeRunSync()
+
+        val proposal4 = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
+
+        proposal4 should be(Right(MissionProposal(1, user1, users.take(2), 1)))
+
+        room.teamVote(user1, TeamVote(true)).unsafeRunSync()
+        room.teamVote(user2, TeamVote(true)).unsafeRunSync()
+        room.teamVote(user3, TeamVote(false)).unsafeRunSync()
+        room.teamVote(user4, TeamVote(false)).unsafeRunSync()
+        room.teamVote(user5, TeamVote(false)).unsafeRunSync()
+
+        val proposal5 = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
+
+        proposal5 should be(Right(MissionProposal(1, user1, users.take(2), 0)))
+
+        room.teamVote(user1, TeamVote(true)).unsafeRunSync()
+        room.teamVote(user2, TeamVote(true)).unsafeRunSync()
+        room.teamVote(user3, TeamVote(false)).unsafeRunSync()
+        room.teamVote(user4, TeamVote(false)).unsafeRunSync()
+        val finalVote = room.teamVote(user5, TeamVote(false)).unsafeRunSync()
+
+        finalVote should be(Left(Room.badGuysWinGameOver[IO](gr).unsafeRunSync))
       }
     }
   }
@@ -1104,7 +1178,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
           val repr = mvar.read.unsafeRunSync().gameRepresentation.get
 
-          repr.state should be(MissionProposing(1, user1))
+          repr.state should be(MissionProposing(1, user1, 5))
         }
       }
 
@@ -1147,7 +1221,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
           val repr = mvar.read.unsafeRunSync().gameRepresentation.get
 
-          repr.state should be(MissionProposing(3, user1))
+          repr.state should be(MissionProposing(3, user1, 5))
         }
       }
     }

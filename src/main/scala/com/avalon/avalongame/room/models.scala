@@ -35,7 +35,7 @@ case class PlayerAlreadyReady(nickname: Nickname) extends RuntimeException with 
 // Game stuff
 //==================
 
-case class MissionProposal(missionNumber: Int, missionLeader: Nickname, players: List[Nickname])
+case class MissionProposal(missionNumber: Int, missionLeader: Nickname, players: List[Nickname], voteNumber: Int)
 case class FinishedTeamVote(missionLeader: Nickname, votes: List[PlayerTeamVote])
 
 sealed abstract case class Mission(number: Int,
@@ -185,8 +185,8 @@ case class BadPlayerRole(nickname: Nickname, role: BadGuy) extends PlayerRole
 sealed trait GameState
 case object Lobby extends GameState
 case class PlayersReadingRole(playersReady: List[Nickname]) extends GameState
-case class MissionProposing(missionNumber: Int, missionLeader: Nickname) extends GameState
-case class MissionVoting(missionNumber: Int, missionLeader: Nickname, users: List[Nickname], votes: List[PlayerTeamVote]) extends GameState
+case class MissionProposing(missionNumber: Int, missionLeader: Nickname, votesLeft: Int) extends GameState
+case class MissionVoting(missionNumber: Int, missionLeader: Nickname, users: List[Nickname], votes: List[PlayerTeamVote], votesLeft: Int) extends GameState
 case class MissionProposed(voters: NonEmptyList[User]) extends GameState
 case class QuestPhase(missionNumber: Int, missionLeader: Nickname, questers: List[Nickname], votes: List[PlayerQuestVote]) extends GameState
 case object AssassinVoteState extends GameState

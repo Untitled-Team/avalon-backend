@@ -9,7 +9,7 @@ trait MockRoom extends Room[IO] {
   def startGame: IO[AllPlayerRoles] = ???
   def playerReady(nickname: Nickname): IO[PlayerReadyEnum] = ???
   def proposeMission(nickname: Nickname, players: List[Nickname]): IO[MissionProposal] = ???
-  def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] = ???
+  def teamVote(nickname: Nickname, vote: TeamVote): IO[Either[GameOver, TeamVoteEnum]] = ???
   def questVote(nickname: Nickname, vote: QuestVote): IO[QuestVotingEnum] = ???
   def questResultsSeen(nickname: Nickname): IO[AfterQuest] = ???
   def assassinVote(assassin: Nickname, guess: Nickname): IO[GameOver] = ???

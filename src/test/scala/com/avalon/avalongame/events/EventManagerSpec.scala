@@ -572,8 +572,8 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO(Nil)
                 override def addUser(player: Nickname): IO[Unit] = IO.unit
-                override def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] =
-                  IO.pure(TeamPhaseStillVoting)
+                override def teamVote(nickname: Nickname, vote: TeamVote): IO[Either[GameOver, TeamVoteEnum]] =
+                  IO.pure(Right(TeamPhaseStillVoting))
               }
             }
           }
@@ -616,8 +616,8 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO(Nil)
                 override def addUser(player: Nickname): IO[Unit] = IO.unit
-                override def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] =
-                  IO.pure(FailedVote(nickname1, 1, Nil, missions))
+                override def teamVote(nickname: Nickname, vote: TeamVote): IO[Either[GameOver, TeamVoteEnum]] =
+                  IO.pure(Right(FailedVote(nickname1, 1, Nil, missions)))
               }
             }
           }
@@ -662,8 +662,8 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO(Nil)
                 override def addUser(player: Nickname): IO[Unit] = IO.unit
-                override def teamVote(nickname: Nickname, vote: TeamVote): IO[TeamVoteEnum] =
-                  IO.pure(SuccessfulVote(Nil))
+                override def teamVote(nickname: Nickname, vote: TeamVote): IO[Either[GameOver, TeamVoteEnum]] =
+                  IO.pure(Right(SuccessfulVote(Nil)))
               }
             }
           }
@@ -682,6 +682,60 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
 
           sendRef.get.unsafeRunSync() should be(Some(PartyApprovalVoteAcknowledgement.make[IO].unsafeRunSync()))
           sendToAllRef.get.unsafeRunSync() should be(Some(PartyApproved.make[IO].unsafeRunSync()))
+        }
+      }
+    }
+
+    "send GameOver message to _everyone_ when a proposed party is failed" in {
+      forAll { roomId: RoomId =>
+        new context {
+
+          val sendRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+          val sendToAllRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+          val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+          val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+          val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager {
+            override def send(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = sendRef.set(Some(outgoingEvent))
+            override def sendToAll(event: OutgoingEvent): IO[Unit] = sendToAllRef.set(Some(event))
+          }
+
+          val gameOver = GameOver(BadPlayerRole(Nickname("blah"), Assassin), None, GoodPlayerRole(Nickname("blah"), Merlin), Nil, Nil, BadGuys)
+
+          val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
+            override def create: IO[RoomId] = IO.pure(roomId)
+            override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
+
+              new MockRoom {
+                override def players: IO[List[Nickname]] = IO(Nil)
+                override def addUser(player: Nickname): IO[Unit] = IO.unit
+                override def teamVote(nickname: Nickname, vote: TeamVote): IO[Either[GameOver, TeamVoteEnum]] =
+                  IO.pure(Left(gameOver))
+              }
+            }
+          }
+
+          val ctxRef = Ref.of[IO, Option[ConnectionContext]](Some(ConnectionContext(nickname1, roomId))).unsafeRunSync()
+          val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map(roomId -> mockOutgoingManager)).unsafeRunSync()
+          val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
+
+          EventManager.handleEvent[IO](
+            PartyApprovalVote(TeamVote(false)),
+            userQueue,
+            mockRoomManager,
+            outgoingRef,
+            ctxRef
+          ).unsafeRunSync()
+
+          sendToAllRef.get.unsafeRunSync() should be(Some(
+            GameOverOutgoingEvent.make[IO](
+              gameOver.assassin.nickname,
+              gameOver.assassinGuess,
+              gameOver.merlin.nickname,
+              gameOver.goodGuys,
+              gameOver.badGuys,
+              gameOver.winningTeam).unsafeRunSync()
+          ))
         }
       }
     }
@@ -707,7 +761,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
                 override def proposeMission(nickname: Nickname, players: List[Nickname]): IO[MissionProposal] =
-                  IO.pure(MissionProposal(1, nickname1, players))
+                  IO.pure(MissionProposal(1, nickname1, players, 5))
               }
             }
           }

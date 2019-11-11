@@ -18,7 +18,7 @@ trait Room[F[_]] {
   def startGame: F[AllPlayerRoles]
   def playerReady(nickname: Nickname): F[PlayerReadyEnum]
   def proposeMission(nickname: Nickname, users: List[Nickname]): F[MissionProposal]
-  def teamVote(nickname: Nickname, vote: TeamVote): F[TeamVoteEnum]
+  def teamVote(nickname: Nickname, vote: TeamVote): F[Either[GameOver, TeamVoteEnum]]
   def questVote(nickname: Nickname, vote: QuestVote): F[QuestVotingEnum]
   def questResultsSeen(nickname: Nickname): F[AfterQuest]
   def assassinVote(assassin: Nickname, guess: Nickname): F[GameOver]
@@ -85,7 +85,7 @@ object Room {
                 if (updatedState.playersReady.size === room.players.size)
                   (for {
                     missionLeader <- randomAlg.randomGet(room.players)
-                    updatedRepr   =  repr.copy(state = MissionProposing(1, missionLeader))
+                    updatedRepr   =  repr.copy(state = MissionProposing(1, missionLeader, 5)) //better way of handling this
                     _             <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
                   } yield AllReady(1, missionLeader, repr.missions)).widen[PlayerReadyEnum]
                 else {
@@ -101,6 +101,10 @@ object Room {
               }
           }
 
+        //tests that we start at votesLeft = 4
+        //increments correctly
+        //fails at 0
+
         //should verify the users provided are actual users in the game as well......
         //maybe we can store each previous state so we have a full track record of everything that happened
         def proposeMission(nickname: Nickname, users: List[Nickname]): F[MissionProposal] =
@@ -108,7 +112,7 @@ object Room {
             (for {
               repr <- F.fromOption(room.gameRepresentation, GameNotStarted)
               proposal <- repr.state match {
-                case m@MissionProposing(_, _) => F.pure(m)
+                case m@MissionProposing(_, _, _) => F.pure(m)
                 case _ => F.raiseError[MissionProposing](InvalidStateTransition(repr.state, "proposeMission", nickname))
               }
               _ <-
@@ -122,21 +126,21 @@ object Room {
                 else F.raiseError[Unit](InvalidUserCountForMission(users.size))
 
               _ <- mvar.put {
-                room.copy(gameRepresentation = Some(repr.copy(state = MissionVoting(proposal.missionNumber, nickname, users, Nil))))
+                room.copy(gameRepresentation = Some(repr.copy(state = MissionVoting(proposal.missionNumber, nickname, users, Nil, proposal.votesLeft))))
               }
-            } yield MissionProposal(proposal.missionNumber, proposal.missionLeader, users))
+            } yield MissionProposal(proposal.missionNumber, proposal.missionLeader, users, proposal.votesLeft - 1))
               .guaranteeCase {
                 case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
                 case ExitCase.Completed => F.unit
               }
           }
 
-        def teamVote(nickname: Nickname, vote: TeamVote): F[TeamVoteEnum] =
+        def teamVote(nickname: Nickname, vote: TeamVote): F[Either[GameOver, TeamVoteEnum]] =
           mvar.take.flatMap { room =>
             (for {
               repr <- F.fromOption(room.gameRepresentation, GameNotStarted)
               proposal <- repr.state match {
-                case m@MissionVoting(_, _, _, _) => F.pure(m)
+                case m@MissionVoting(_, _, _, _, _) => F.pure(m)
                 case _ => F.raiseError[MissionVoting](InvalidStateTransition(repr.state, "teamVote", nickname))
               }
               updatedState <-
@@ -162,7 +166,7 @@ object Room {
                 case FailedVote(ml, _, _, missions) =>
                   F.pure {
                     repr.copy(
-                      state = MissionProposing(proposal.missionNumber, ml),//need to cycle mission leaders better
+                      state = MissionProposing(proposal.missionNumber, ml, proposal.votesLeft - 1),//need to cycle mission leaders better
                       missions = missions)
                   }
                 case SuccessfulVote(votes) =>
@@ -174,8 +178,18 @@ object Room {
                     }
                   }
               }
+
+              gameOverCheck: Either[GameOver, TeamVoteEnum] <-
+                result match {
+                  case FailedVote(_, _, _, _) =>
+                    if ((proposal.votesLeft - 1) === 0)
+                      badGuysWinGameOver(repr).map(Left(_))
+                    else F.pure(Right(result))
+                  case _ => F.pure(Right(result))
+                }
+
               _ <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
-            } yield result)
+            } yield gameOverCheck).widen[Either[GameOver, TeamVoteEnum]]
               .guaranteeCase {
                 case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
                 case ExitCase.Completed => F.unit
@@ -254,8 +268,8 @@ object Room {
                         nextMissionLeader <- randomAlg.clockwise(previousLeader, room.players)
                         currentMission <- F.fromEither[Mission](Missions.currentMission(repr.missions))
                       } yield
-                        (GameContinues(nextMissionLeader, currentMission.number, repr.missions),
-                          repr.copy(state = MissionProposing(currentMission.number, nextMissionLeader)))).widen[(AfterQuest, GameRepresentation)]
+                        (GameContinues(nextMissionLeader, currentMission.number, repr.missions), //better way of starting it over at 0?
+                          repr.copy(state = MissionProposing(currentMission.number, nextMissionLeader, 5)))).widen[(AfterQuest, GameRepresentation)]
                     case AssassinNeedsToVote => //better type check here???
                       F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow).map { assassin =>
                         (AssassinVote(assassin.nickname, repr.goodGuys), repr.copy(state = AssassinVoteState))
@@ -316,6 +330,13 @@ object Room {
   //timeouts on get/reads?
   def build[F[_]](randomAlg: RandomAlg[F], roomId: RoomId)(implicit F: Concurrent[F]): F[Room[F]] =
     MVar.of(InternalRoom(Nil, None)).map(buildPrivate(randomAlg, roomId, _))
+
+
+  def badGuysWinGameOver[F[_]](repr: GameRepresentation)(implicit F: Sync[F]): F[GameOver] =
+    for {
+      actualAssassin <- F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow)
+      merlin <- F.fromOption(repr.goodGuys.find(_.role == Merlin), NoPlayerIsMerlinSomehow)
+    } yield GameOver(actualAssassin, None, merlin, repr.goodGuys, repr.badGuys, BadGuys)
 }
 
 sealed trait TeamVoteEnum
