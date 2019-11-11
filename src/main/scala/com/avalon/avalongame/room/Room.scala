@@ -101,10 +101,6 @@ object Room {
               }
           }
 
-        //tests that we start at votesLeft = 4
-        //increments correctly
-        //fails at 0
-
         //should verify the users provided are actual users in the game as well......
         //maybe we can store each previous state so we have a full track record of everything that happened
         def proposeMission(nickname: Nickname, users: List[Nickname]): F[MissionProposal] =
@@ -128,7 +124,9 @@ object Room {
               _ <- mvar.put {
                 room.copy(gameRepresentation = Some(repr.copy(state = MissionVoting(proposal.missionNumber, nickname, users, Nil, proposal.votesLeft))))
               }
-            } yield MissionProposal(proposal.missionNumber, proposal.missionLeader, users, proposal.votesLeft - 1))
+
+              nextMissionLeader <- randomAlg.clockwise(proposal.missionLeader, room.players)
+            } yield MissionProposal(proposal.missionNumber, proposal.missionLeader, users, proposal.votesLeft - 1, nextMissionLeader))
               .guaranteeCase {
                 case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
                 case ExitCase.Completed => F.unit

@@ -416,7 +416,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val proposal = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
 
-        proposal should be(Right(MissionProposal(1, user1, users.take(2), 4)))
+        proposal should be(Right(MissionProposal(1, user1, users.take(2), 4, user1)))
       }
     }
   }
@@ -686,7 +686,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val proposal = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
 
-        proposal should be(Right(MissionProposal(1, user1, users.take(2), 3)))
+        proposal should be(Right(MissionProposal(1, user1, users.take(2), 3, user1)))
       }
     }
 
@@ -722,7 +722,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val proposal2 = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
 
-        proposal2 should be(Right(MissionProposal(1, user1, users.take(2), 3)))
+        proposal2 should be(Right(MissionProposal(1, user1, users.take(2), 3, user1)))
 
         room.teamVote(user1, TeamVote(true)).unsafeRunSync()
         room.teamVote(user2, TeamVote(true)).unsafeRunSync()
@@ -732,7 +732,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val proposal3 = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
 
-        proposal3 should be(Right(MissionProposal(1, user1, users.take(2), 2)))
+        proposal3 should be(Right(MissionProposal(1, user1, users.take(2), 2, user1)))
 
         room.teamVote(user1, TeamVote(true)).unsafeRunSync()
         room.teamVote(user2, TeamVote(true)).unsafeRunSync()
@@ -742,7 +742,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val proposal4 = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
 
-        proposal4 should be(Right(MissionProposal(1, user1, users.take(2), 1)))
+        proposal4 should be(Right(MissionProposal(1, user1, users.take(2), 1, user1)))
 
         room.teamVote(user1, TeamVote(true)).unsafeRunSync()
         room.teamVote(user2, TeamVote(true)).unsafeRunSync()
@@ -752,7 +752,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val proposal5 = room.proposeMission(user1, users.take(2)).attempt.unsafeRunSync()
 
-        proposal5 should be(Right(MissionProposal(1, user1, users.take(2), 0)))
+        proposal5 should be(Right(MissionProposal(1, user1, users.take(2), 0, user1)))
 
         room.teamVote(user1, TeamVote(true)).unsafeRunSync()
         room.teamVote(user2, TeamVote(true)).unsafeRunSync()

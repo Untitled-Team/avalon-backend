@@ -168,7 +168,7 @@ object EventManager {
           ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
           room          <- roomManager.get(ctx.roomId)
           proposal      <- room.proposeMission(ctx.nickname, players)
-          outgoingEvent <- ProposedParty.make(proposal.players)
+          outgoingEvent <- ProposedParty.make(proposal.players, proposal.nextMissionLeader, proposal.votesLeft)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
           _             <- outgoing.sendToAll(outgoingEvent)
@@ -176,7 +176,7 @@ object EventManager {
           case t => Sync[F].delay(println(s"We encountered an error with ProposeParty for ???,  ${t.getStackTrace}"))
         }
 
-        case PartyApprovalVote(vote) =>
+      case PartyApprovalVote(vote) =>
         (for {
           ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
           room          <- roomManager.get(ctx.roomId)
