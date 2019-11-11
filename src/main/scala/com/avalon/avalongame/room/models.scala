@@ -35,7 +35,7 @@ case class PlayerAlreadyReady(nickname: Nickname) extends RuntimeException with 
 // Game stuff
 //==================
 
-case class MissionProposal(missionNumber: Int, missionLeader: Nickname, players: List[Nickname], voteNumber: Int)
+case class MissionProposal(missionNumber: Int, missionLeader: Nickname, players: List[Nickname], votesLeft: Int, nextMissionLeader: Nickname)
 case class FinishedTeamVote(missionLeader: Nickname, votes: List[PlayerTeamVote])
 
 sealed abstract case class Mission(number: Int,

@@ -183,6 +183,8 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     Json.obj(
       "event" := "ProposedParty",
       "proposedParty" := proposedParty.proposedParty,
+      "nextMissionLeader" := proposedParty.nextMissionLeader,
+      "proposalsLeft" := proposedParty.proposalsLeft,
       "id" := proposedParty.id
     )
 
