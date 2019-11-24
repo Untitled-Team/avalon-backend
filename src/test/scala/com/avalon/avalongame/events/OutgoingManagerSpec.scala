@@ -1,5 +1,6 @@
 package com.avalon.avalongame.events
 
+import com.avalon.avalongame.Arbitraries._
 import cats.Eq
 import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect.{ContextShift, IO, Timer}
