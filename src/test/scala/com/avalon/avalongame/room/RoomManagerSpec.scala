@@ -1,5 +1,6 @@
 package com.avalon.avalongame.room
 
+import com.avalon.avalongame.Arbitraries._
 import cats.Eq
 import cats.effect.{ContextShift, IO}
 import com.avalon.avalongame.common._
