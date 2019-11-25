@@ -270,7 +270,7 @@ object Room {
                           repr.copy(state = MissionProposing(currentMission.number, nextMissionLeader, 5)))).widen[(AfterQuest, GameRepresentation)]
                     case AssassinNeedsToVote => //better type check here???
                       F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow).map { assassin =>
-                        (AssassinVote(assassin.nickname, repr.goodGuys), repr.copy(state = AssassinVoteState))
+                        (AssassinVote(assassin.nickname, repr.goodGuys, repr.missions), repr.copy(state = AssassinVoteState))
                       }.widen[(AfterQuest, GameRepresentation)]
                     case BadGuysWin =>
                       (for {
@@ -350,7 +350,7 @@ case class FinishedVote(votes: List[QuestVote]) extends QuestVotingEnum
 
 sealed trait AfterQuest
 case object StillViewingQuestResults extends AfterQuest
-case class AssassinVote(assassin: Nickname, goodGuys: List[GoodPlayerRole]) extends AfterQuest
+case class AssassinVote(assassin: Nickname, goodGuys: List[GoodPlayerRole], missions: Missions) extends AfterQuest
 case class BadGuyVictory(assassin: BadPlayerRole,
                          assassinGuess: Option[Nickname],
                          merlin: GoodPlayerRole,

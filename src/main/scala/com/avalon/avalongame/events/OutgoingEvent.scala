@@ -61,10 +61,13 @@ object PlayerInfo {
   }
 }
 
-case class TeamAssignmentPhase(missionNumber: Int, missionLeader: Nickname, missions: Missions, id: FUUID) extends OutgoingEvent
+case class TeamAssignmentPhase(missionNumber: Option[Int], missionLeader: Option[Nickname], missions: Missions, id: FUUID) extends OutgoingEvent
 object TeamAssignmentPhase {
   def make[F[_]: Sync](missionNumber: Int, missionLeader: Nickname, missions: Missions)(implicit R: RandomAlg[F]): F[TeamAssignmentPhase] =
-    R.fuuid.map(TeamAssignmentPhase(missionNumber, missionLeader, missions, _))
+    R.fuuid.map(TeamAssignmentPhase(Some(missionNumber), Some(missionLeader), missions, _))
+
+  def makeAssassinVote[F[_]: Sync](missions: Missions)(implicit R: RandomAlg[F]): F[TeamAssignmentPhase] =
+    R.fuuid.map(TeamAssignmentPhase(None, None, missions, _))
 
   implicit val encoder: Encoder[TeamAssignmentPhase] = deriveEncoder
 }

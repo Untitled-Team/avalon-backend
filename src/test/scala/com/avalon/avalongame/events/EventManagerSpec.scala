@@ -932,7 +932,8 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
-                override def questResultsSeen(nickname: Nickname): IO[AfterQuest] = IO.pure(AssassinVote(nickname1, Nil))
+                override def questResultsSeen(nickname: Nickname): IO[AfterQuest] =
+                  IO.pure(AssassinVote(nickname1, Nil, IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync))
               }
             }
           }
