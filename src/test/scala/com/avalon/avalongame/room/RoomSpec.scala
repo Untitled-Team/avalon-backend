@@ -1095,7 +1095,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         room.questResultsSeen(user2).unsafeRunSync() should be(StillViewingQuestResults)
         room.questResultsSeen(user3).unsafeRunSync() should be(StillViewingQuestResults)
         room.questResultsSeen(user4).unsafeRunSync() should be(StillViewingQuestResults)
-        room.questResultsSeen(user5).unsafeRunSync() should be(AssassinVote(user1, goodPlayerRoles))
+        room.questResultsSeen(user5).unsafeRunSync() should be(AssassinVote(user1, goodPlayerRoles, missions))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
 

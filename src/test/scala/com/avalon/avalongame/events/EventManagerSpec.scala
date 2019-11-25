@@ -930,7 +930,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             override def create: IO[RoomId] = IO.pure(roomId)
             override def get(roomId: RoomId): IO[Room[IO]] = IO.pure {
               new MockRoom {
-                override def questResultsSeen(nickname: Nickname): IO[AfterQuest] = IO.pure(AssassinVote(nickname1, Nil))
+                override def questResultsSeen(nickname: Nickname): IO[AfterQuest] = IO.pure(AssassinVote(nickname1, Nil, missions))
               }
             }
           }
@@ -949,7 +949,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
 
           sendRef.get.unsafeRunSync() should be(Some(QuestDisplayAcknowledgement.make[IO].unsafeRunSync()))
           sendToAllRef.get.unsafeRunSync() should be(
-            Some(AssassinVoteOutgoingEvent.make[IO](nickname1, Nil).unsafeRunSync()))
+            Some(AssassinVoteOutgoingEvent.make[IO](nickname1, Nil, missions).unsafeRunSync()))
         }
       }
     }
