@@ -1,6 +1,7 @@
 package com.avalon.avalongame
 package events
 
+import com.avalon.avalongame.Arbitraries._
 import cats.implicits._
 import cats.effect.{ContextShift, IO}
 import com.avalon.avalongame.common._

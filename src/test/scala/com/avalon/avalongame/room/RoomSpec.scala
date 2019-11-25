@@ -1,6 +1,7 @@
 package com.avalon.avalongame.room
 
 import cats.effect.{ContextShift, IO, Timer}
+import com.avalon.avalongame.Arbitraries._
 import com.avalon.avalongame.common._
 import com.avalon.avalongame.RandomAlg
 import com.mrdziuban.ScalacheckMagnolia._

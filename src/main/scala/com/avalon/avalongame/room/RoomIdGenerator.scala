@@ -11,6 +11,6 @@ object RoomIdGenerator {
   def build[F[_]: Sync]: RoomIdGenerator[F] = new RoomIdGenerator[F] {
     val r = scala.util.Random
 
-    override def generate: F[RoomId] = Sync[F].delay(RoomId(r.alphanumeric.filter(_.isLetter).take(6).mkString.toLowerCase))
+    override def generate: F[RoomId] = Sync[F].delay(RoomId.create(r.alphanumeric.filter(_.isLetter).take(4).mkString.toLowerCase))
   }
 }

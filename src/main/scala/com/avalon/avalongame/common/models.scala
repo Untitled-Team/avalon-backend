@@ -15,18 +15,20 @@ import io.circe.generic.extras.semiauto.deriveUnwrappedEncoder
 
 import scala.util.control.NoStackTrace
 
-final case class RoomId(value: String) extends AnyVal
+sealed abstract case class RoomId(value: String)
 
 object RoomId {
+  def create(value: String): RoomId = new RoomId(value.toLowerCase){}
+
   implicit val eq: Eq[RoomId] = Eq.fromUniversalEquals
   implicit val show: Show[RoomId] = Show.show(_.value)
-  implicit val decoder: Decoder[RoomId] = deriveUnwrappedDecoder
-  implicit val encoder: Encoder[RoomId] = deriveUnwrappedEncoder
+  implicit val decoder: Decoder[RoomId] = Decoder.decodeString.map(create)
+  implicit val encoder: Encoder[RoomId] = Encoder.encodeString.contramap(_.value)
 }
 
 object RoomIdVar {
   def unapply(s: String): Option[RoomId] =
-    Some(RoomId(s))
+    Some(RoomId.create(s))
 }
 
 case class Nickname(value: String)

@@ -1,5 +1,6 @@
 package com.avalon.avalongame.events
 
+import com.avalon.avalongame.Arbitraries._
 import cats.Eq
 import cats.effect.concurrent.{MVar, Ref}
 import cats.effect.{ContextShift, IO, Timer}
@@ -11,6 +12,7 @@ import com.avalon.avalongame.room._
 import io.chrisdavenport.fuuid._
 import fs2._
 import fs2.concurrent.Queue
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.{FunSuite, Matchers, WordSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
