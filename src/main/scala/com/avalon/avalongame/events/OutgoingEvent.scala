@@ -116,13 +116,19 @@ object QuestDisplayAcknowledgement {
   implicit val encoder: Encoder[QuestDisplayAcknowledgement] = deriveEncoder
 }
 
-case class AssassinVoteOutgoingEvent(assassin: Nickname, goodGuys: List[Nickname], id: FUUID) extends OutgoingEvent
+case class AssassinVoteOutgoingEvent(assassin: Nickname, goodGuys: List[Nickname], missions: Missions, id: FUUID) extends OutgoingEvent
 object AssassinVoteOutgoingEvent {
-  def make[F[_]: Sync](assassin: Nickname, goodGuys: List[Nickname])(implicit R: RandomAlg[F]): F[AssassinVoteOutgoingEvent] =
-    R.fuuid.map(AssassinVoteOutgoingEvent(assassin, goodGuys, _))
+  def make[F[_]: Sync](assassin: Nickname, goodGuys: List[Nickname], missions: Missions)(implicit R: RandomAlg[F]): F[AssassinVoteOutgoingEvent] =
+    R.fuuid.map(AssassinVoteOutgoingEvent(assassin, goodGuys, missions, _))
 
   implicit val encoder: Encoder[AssassinVoteOutgoingEvent] = Encoder.instance { aVote =>
-    Json.obj("assassinVoteData" := Json.obj("assassin" := aVote.assassin, "goodGuys" := aVote.goodGuys, "id" := aVote.id))
+    Json.obj(
+      "assassinVoteData" :=
+        Json.obj(
+          "assassin" := aVote.assassin,
+          "goodGuys" := aVote.goodGuys,
+          "id" := aVote.id),
+      "missions" := aVote.missions)
   }
 }
 
@@ -161,19 +167,19 @@ object GameOverOutgoingEvent {
 
 object OutgoingEventEncoder {
   implicit val encoder: Encoder[OutgoingEvent] = Encoder.instance {
-    case g@MoveToLobby(_, _, _)                => MoveToLobby.encoder.apply(g).deepMerge(Json.obj("event" := "MoveToLobby"))
-    case j@ChangeInLobby(_, _)                 => ChangeInLobby.encoder.apply(j).deepMerge(Json.obj("event" := "ChangeInLobby"))
-    case g@GameLeft(_)                         => GameLeft.encoder.apply(g).deepMerge(Json.obj("event" := "GameLeft"))
-    case p@PlayerReadyAcknowledgement(_)       => PlayerReadyAcknowledgement.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerReadyAcknowledgement"))
-    case p@PlayerInfo(_, _, _)                 => PlayerInfo.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerInfo"))
-    case g@TeamAssignmentPhase(_, _, _, _)     => TeamAssignmentPhase.encoder.apply(g).deepMerge(Json.obj("event" := "TeamAssignmentPhase"))
-    case g@ProposedParty(_, _, _, _)           => ProposedParty.encoder.apply(g).deepMerge(Json.obj("event" := "ProposedParty"))
-    case p@PartyApprovalVoteAcknowledgement(_) => PartyApprovalVoteAcknowledgement.encoder.apply(p).deepMerge(Json.obj("event" := "PartyApprovalVoteAcknowledgement"))
-    case p@PartyApproved(_)                    => PartyApproved.encoder.apply(p).deepMerge(Json.obj("event" := "PartyApproved"))
-    case q@QuestVoteAcknowledgement(_)         => QuestVoteAcknowledgement.encoder.apply(q).deepMerge(Json.obj("event" := "QuestVoteAcknowledgement"))
-    case p@PassFailVoteResults(_, _, _)        => PassFailVoteResults.encoder.apply(p).deepMerge(Json.obj("event" := "PassFailVoteResults"))
-    case q@QuestDisplayAcknowledgement(_)      => QuestDisplayAcknowledgement.encoder.apply(q).deepMerge(Json.obj("event" := "QuestDisplayAcknowledgement"))
-    case a@AssassinVoteOutgoingEvent(_, _, _)  => AssassinVoteOutgoingEvent.encoder.apply(a).deepMerge(Json.obj("event" := "AssassinVote"))
+    case g@MoveToLobby(_, _, _)                  => MoveToLobby.encoder.apply(g).deepMerge(Json.obj("event" := "MoveToLobby"))
+    case j@ChangeInLobby(_, _)                   => ChangeInLobby.encoder.apply(j).deepMerge(Json.obj("event" := "ChangeInLobby"))
+    case g@GameLeft(_)                           => GameLeft.encoder.apply(g).deepMerge(Json.obj("event" := "GameLeft"))
+    case p@PlayerReadyAcknowledgement(_)         => PlayerReadyAcknowledgement.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerReadyAcknowledgement"))
+    case p@PlayerInfo(_, _, _)                   => PlayerInfo.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerInfo"))
+    case g@TeamAssignmentPhase(_, _, _, _)       => TeamAssignmentPhase.encoder.apply(g).deepMerge(Json.obj("event" := "TeamAssignmentPhase"))
+    case g@ProposedParty(_, _, _, _)             => ProposedParty.encoder.apply(g).deepMerge(Json.obj("event" := "ProposedParty"))
+    case p@PartyApprovalVoteAcknowledgement(_)   => PartyApprovalVoteAcknowledgement.encoder.apply(p).deepMerge(Json.obj("event" := "PartyApprovalVoteAcknowledgement"))
+    case p@PartyApproved(_)                      => PartyApproved.encoder.apply(p).deepMerge(Json.obj("event" := "PartyApproved"))
+    case q@QuestVoteAcknowledgement(_)           => QuestVoteAcknowledgement.encoder.apply(q).deepMerge(Json.obj("event" := "QuestVoteAcknowledgement"))
+    case p@PassFailVoteResults(_, _, _)          => PassFailVoteResults.encoder.apply(p).deepMerge(Json.obj("event" := "PassFailVoteResults"))
+    case q@QuestDisplayAcknowledgement(_)        => QuestDisplayAcknowledgement.encoder.apply(q).deepMerge(Json.obj("event" := "QuestDisplayAcknowledgement"))
+    case a@AssassinVoteOutgoingEvent(_, _, _, _) => AssassinVoteOutgoingEvent.encoder.apply(a).deepMerge(Json.obj("event" := "AssassinVote"))
     case g@GameOverOutgoingEvent(_, _, _, _, _, _, _) => GameOverOutgoingEvent.encoder.apply(g).deepMerge(Json.obj("event" := "GameOver"))
   }
 }

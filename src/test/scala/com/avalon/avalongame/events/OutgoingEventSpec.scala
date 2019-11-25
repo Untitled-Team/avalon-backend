@@ -207,7 +207,8 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
         "assassin" := assassinVote.assassin,
         "goodGuys" := assassinVote.goodGuys,
         "id" := assassinVote.id
-      )
+      ),
+      "missions" := assassinVote.missions
     )
 
   def gameOverJson(gameOver: GameOverOutgoingEvent): Json =

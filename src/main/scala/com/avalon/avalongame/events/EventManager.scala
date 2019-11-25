@@ -231,8 +231,8 @@ object EventManager {
           _             <- QuestDisplayAcknowledgement.make.flatMap(outgoing.send(ctx.nickname, _))
           _ <- resultsStatus match {
             case StillViewingQuestResults => F.unit
-            case AssassinVote(assassin, goodGuys) =>
-              AssassinVoteOutgoingEvent.make(assassin, goodGuys.map(_.nickname)).flatMap(outgoing.sendToAll)
+            case AssassinVote(assassin, goodGuys, missions) =>
+              AssassinVoteOutgoingEvent.make(assassin, goodGuys.map(_.nickname), missions).flatMap(outgoing.sendToAll)
             case BadGuyVictory(assassin, _, merlin, goodGuys, badGuys, winningTeam) =>
               GameOverOutgoingEvent.make(assassin.nickname, None, merlin.nickname, goodGuys, badGuys, winningTeam).flatMap(outgoing.sendToAll)
             case GameContinues(missionLeader, missionNumber, missions) =>
