@@ -859,6 +859,123 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
       }
     }
 
+    "Fail quest if even one person fail the quest" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+
+        val users = List(user1, user2, user3, user4, user5)
+
+        val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          QuestPhase(1, user1, List(user1, user2), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy)),
+          List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questVote(user1, QuestVote(true)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room.questVote(user2, QuestVote(false)).unsafeRunSync() should be(FinishedVote(List(QuestVote(true), QuestVote(false))))
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+        val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 1)).unsafeRunSync()
+        completedMission.pass should be(Some(QuestVote(false)))
+
+        repr.state should be(QuestResultsViewing(NextMission(user1), Nil))
+      }
+    }
+
+    "Pass quest if 2 people don't fail on the 4th quest with 7 or more players" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+        val user6 = Nickname("Kelsey")
+        val user7 = Nickname("Adrian")
+
+        val users = List(user1, user2, user3, user4, user5, user6, user7)
+
+        val missions = IO.fromEither(Missions.fromPlayers(7)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          QuestPhase(4, user1, List(user1, user2, user3, user4), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy), BadPlayerRole(user3, NormalBadGuy)),
+          List(GoodPlayerRole(user4, Merlin), GoodPlayerRole(user5, NormalGoodGuy), GoodPlayerRole(user6, NormalGoodGuy), GoodPlayerRole(user7, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questVote(user1, QuestVote(false)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room.questVote(user2, QuestVote(true)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room.questVote(user3, QuestVote(true)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room
+          .questVote(user4, QuestVote(true))
+          .unsafeRunSync() should be(FinishedVote(List(QuestVote(false), QuestVote(true), QuestVote(true), QuestVote(true))))
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+        val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 4)).unsafeRunSync()
+        completedMission.pass should be(Some(QuestVote(true)))
+
+        repr.state should be(QuestResultsViewing(NextMission(user1), Nil))
+      }
+    }
+
+    "Fail quest if 2 people fail on the 4th quest with 7 or more players" in {
+      forAll { (roomId: RoomId, config: GameConfig) =>
+
+        val user1 = Nickname("Taylor")
+        val user2 = Nickname("Nick")
+        val user3 = Nickname("Chris")
+        val user4 = Nickname("Carter")
+        val user5 = Nickname("Austin")
+        val user6 = Nickname("Kelsey")
+        val user7 = Nickname("Adrian")
+
+        val users = List(user1, user2, user3, user4, user5, user6, user7)
+
+        val missions = IO.fromEither(Missions.fromPlayers(7)).unsafeRunSync()
+
+        val gr = GameRepresentation(
+          QuestPhase(4, user1, List(user1, user2, user3, user4), Nil),
+          missions,
+          List(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy), BadPlayerRole(user3, NormalBadGuy)),
+          List(GoodPlayerRole(user4, Merlin), GoodPlayerRole(user5, NormalGoodGuy), GoodPlayerRole(user6, NormalGoodGuy), GoodPlayerRole(user7, NormalGoodGuy)),
+          users)
+
+        val mvar = MVar.of[IO, InternalRoom](InternalRoom(users, Some(gr))).unsafeRunSync()
+
+        val room = Room.buildPrivate(mockRandomAlg, roomId, mvar)
+
+        room.questVote(user1, QuestVote(false)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room.questVote(user2, QuestVote(false)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room.questVote(user3, QuestVote(true)).unsafeRunSync() should be(QuestPhaseStillVoting)
+        room
+          .questVote(user4, QuestVote(true))
+          .unsafeRunSync() should be(FinishedVote(List(QuestVote(false), QuestVote(false), QuestVote(true), QuestVote(true))))
+
+        val repr = mvar.read.unsafeRunSync().gameRepresentation.get
+        val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 4)).unsafeRunSync()
+        completedMission.pass should be(Some(QuestVote(false)))
+
+        repr.state should be(QuestResultsViewing(NextMission(user1), Nil))
+      }
+    }
+
     "Good guys cannot fail a mission even if they try" in {
       forAll { (roomId: RoomId, config: GameConfig) =>
 

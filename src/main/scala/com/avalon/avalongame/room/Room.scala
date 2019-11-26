@@ -215,7 +215,10 @@ object Room {
 
               currentNumberOfAdventurers <- F.fromEither(Missions.fromInt(repr.missions, questPhase.missionNumber)).map(_.numberOfAdventurers)
 
-              currentMissionPassStatus = !updatedState.votes.map(_.vote).contains(QuestVote(false))
+              currentMissionPassStatus =
+                if (room.players.size >= 7) !(updatedState.votes.map(_.vote).count(_ === QuestVote(false)) >= 2)
+                else !updatedState.votes.map(_.vote).contains(QuestVote(false))
+
               updatedRepr <-
                 if (updatedState.votes.size === currentNumberOfAdventurers)
                   F.fromEither[Missions](
