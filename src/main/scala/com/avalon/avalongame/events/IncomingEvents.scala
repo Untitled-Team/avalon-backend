@@ -30,6 +30,8 @@ object Reconnect {
 
 case object StartGame extends IncomingEvent
 
+case object PlayerReady extends IncomingEvent
+
 case class ProposeParty(proposedParty: List[Nickname]) extends IncomingEvent
 object ProposeParty {
   implicit val decoder: Decoder[ProposeParty] = deriveDecoder
@@ -63,6 +65,7 @@ object IncomingEventDecoder {
         case "LeaveGame"            => Right(LeaveGame)
         case "Reconnect"            => Reconnect.decoder.decodeJson(hcursor.value)
         case "StartGame"            => Right(StartGame)
+        case "PlayerReady"          => Right(PlayerReady)
         case "ProposeParty"         => ProposeParty.decoder.decodeJson(hcursor.value)
         case "PartyApprovalVote"    => PartyApprovalVote.decoder.decodeJson(hcursor.value)
         case "QuestVote"            => QuestVoteEvent.decoder.decodeJson(hcursor.value)
