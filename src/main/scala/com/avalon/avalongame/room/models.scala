@@ -209,6 +209,7 @@ case object AssassinNeedsToVote extends QuestPhaseEnum
 case object BadGuysWin extends QuestPhaseEnum
 
 
+case class StartGameInfo(roles: AllPlayerRoles, startingState: AllReady)
 case class AllPlayerRoles(goodGuys: List[GoodPlayerRole], badGuys: List[BadPlayerRole])
 
 case class GameRepresentation(state: GameState,
