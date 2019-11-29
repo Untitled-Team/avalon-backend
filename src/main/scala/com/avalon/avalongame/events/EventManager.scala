@@ -138,19 +138,29 @@ object EventManager {
         (for {
           ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
           room          <- roomManager.get(ctx.roomId)
-          startGameInfo <- room.startGame
+          roles         <- room.startGame
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-          _             <- outgoing.sendToAllUserSpecific(playerRole(_, startGameInfo.roles).widen[OutgoingEvent])
+          _             <- outgoing.sendToAllUserSpecific(playerRole(_, roles).widen[OutgoingEvent])
+        } yield ()).onError {
+          case t => Sync[F].delay(println(s"We encountered an error while starting game for ???,  ${t.getStackTrace}"))
+        }
+
+      case PlayerReady => F.unit
+        (for {
+          ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
+          room          <- roomManager.get(ctx.roomId)
+          result        <- room.playerReady(ctx.nickname)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
-          _ <- startGameInfo.startingState match {
+          _             <- PlayerReadyAcknowledgement.make.flatMap(outgoing.send(ctx.nickname, _))
+          _ <- result match {
             case AllReady(missionNumber, leader, missions) =>
               TeamAssignmentPhase.make(missionNumber, leader, missions).flatMap(outgoing.sendToAll)
             case _ => F.unit
           }
         } yield ()).onError {
-          case t => Sync[F].delay(println(s"We encountered an error while starting game for ???,  ${t.getStackTrace}"))
+          case t => Sync[F].delay(println(s"We encountered an error while handling PlayerReady for ???,  ${t.getStackTrace}"))
         }
 
       case ProposeParty(players) => F.unit
