@@ -232,6 +232,6 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     )
 
   val gameNoLongerExistsJson: Json =
-    Json.obj("event" := "GameLeft", "id" := constant.show)
+    Json.obj("event" := "GameNoLongerExists", "id" := constant.show)
 
 }
