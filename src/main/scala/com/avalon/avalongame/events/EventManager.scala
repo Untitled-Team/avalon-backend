@@ -130,8 +130,12 @@ object EventManager {
           outgoing <- Sync[F].fromOption(mapping.get(roomId), NoRoomFoundForChatId)
           _        <- outgoing.reconnect(nickname, lastMessageId, respond)
           _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
-        } yield ()).onError {
-          case t => Sync[F].delay(println(s"We encountered an error while creating game for $nickname,  ${t.getStackTrace}"))
+        } yield ()).handleErrorWith {
+          case t@NoRoomFoundForChatId =>
+            GameNoLongerExists.make[F].flatMap(respond.enqueue1)
+          case t =>
+            Sync[F].delay(println(s"We encountered an error while creating game for $nickname, ${t.getStackTrace}")) *>
+              Sync[F].raiseError(t)
         }
 
       case StartGame =>

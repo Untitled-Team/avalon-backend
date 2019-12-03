@@ -42,6 +42,14 @@ object GameLeft {
   implicit val encoder: Encoder[GameLeft] = deriveEncoder
 }
 
+case class GameNoLongerExists(id: FUUID) extends OutgoingEvent
+
+object GameNoLongerExists {
+  def make[F[_]: Sync](implicit R: RandomAlg[F]): F[GameNoLongerExists] = R.fuuid.map(GameNoLongerExists(_))
+
+  implicit val encoder: Encoder[GameNoLongerExists] = deriveEncoder
+}
+
 case class PlayerReadyAcknowledgement(id: FUUID) extends OutgoingEvent
 
 object PlayerReadyAcknowledgement {
@@ -170,6 +178,7 @@ object OutgoingEventEncoder {
     case g@MoveToLobby(_, _, _)                  => MoveToLobby.encoder.apply(g).deepMerge(Json.obj("event" := "MoveToLobby"))
     case j@ChangeInLobby(_, _)                   => ChangeInLobby.encoder.apply(j).deepMerge(Json.obj("event" := "ChangeInLobby"))
     case g@GameLeft(_)                           => GameLeft.encoder.apply(g).deepMerge(Json.obj("event" := "GameLeft"))
+    case g@GameNoLongerExists(_)                 => GameNoLongerExists.encoder.apply(g).deepMerge(Json.obj("event" := "GameNoLongerExists"))
     case p@PlayerReadyAcknowledgement(_)         => PlayerReadyAcknowledgement.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerReadyAcknowledgement"))
     case p@PlayerInfo(_, _, _)                   => PlayerInfo.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerInfo"))
     case g@TeamAssignmentPhase(_, _, _, _)       => TeamAssignmentPhase.encoder.apply(g).deepMerge(Json.obj("event" := "TeamAssignmentPhase"))

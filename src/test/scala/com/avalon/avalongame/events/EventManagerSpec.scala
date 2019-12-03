@@ -351,7 +351,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
       }
     }
 
-    "fail when no room exists for outgoing managing" in {
+    "return GameNoLongerExists when the outgoing does not have the room in it" in {
       forAll { (roomId: RoomId, gameConfig: GameConfig) =>
         new context {
 
@@ -376,7 +376,37 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             mockRoomManager,
             outgoingRef,
             ctxRef
-          ).attempt.unsafeRunSync() should be(Left(NoRoomFoundForChatId))
+          ).attempt.unsafeRunSync()
+
+          userQueue.tryDequeue1.unsafeRunSync().get should be(GameNoLongerExists.make[IO].unsafeRunSync())
+        }
+      }
+    }
+
+    "fail when no room exists for outgoing managing" in {
+      forAll { (roomId: RoomId, gameConfig: GameConfig) =>
+        new context {
+
+          val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+
+          val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
+            override def create: IO[RoomId] = IO.pure(roomId)
+            override def get(roomId: RoomId): IO[Room[IO]] = IO.raiseError(NoRoomFoundForChatId)
+          }
+
+          val ctxRef = Ref.of[IO, Option[ConnectionContext]](None).unsafeRunSync()
+          val outgoingRef = Ref.of[IO, Map[RoomId, OutgoingManager[IO]]](Map.empty).unsafeRunSync()
+          val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
+
+          EventManager.handleEvent[IO](
+            Reconnect(nickname1, roomId, FUUID.randomFUUID[IO].unsafeRunSync()),
+            userQueue,
+            mockRoomManager,
+            outgoingRef,
+            ctxRef
+          ).unsafeRunSync()
+
+          userQueue.tryDequeue1.unsafeRunSync().get should be(GameNoLongerExists.make[IO].unsafeRunSync())
         }
       }
     }

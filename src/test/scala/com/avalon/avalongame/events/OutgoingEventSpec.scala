@@ -145,6 +145,12 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     }
   }
 
+  test("make sure we can encode GameNoLongerExists event") {
+    val json = gameNoLongerExistsJson
+
+    json should be(OutgoingEventEncoder.encoder(GameNoLongerExists(constant)))
+  }
+
   def gameCreatedJson(moveToLobby: MoveToLobby): Json =
     Json.obj(
       "event" := "MoveToLobby",
@@ -224,4 +230,8 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
         "id" := gameOver.id
       )
     )
+
+  val gameNoLongerExistsJson: Json =
+    Json.obj("event" := "GameNoLongerExists", "id" := constant.show)
+
 }
