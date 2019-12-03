@@ -132,7 +132,6 @@ object EventManager {
           _        <- context.update(_ => Some(ConnectionContext(nickname, roomId)))
         } yield ()).handleErrorWith {
           case t@NoRoomFoundForChatId =>
-            println(s"HERE: $t")
             GameNoLongerExists.make[F].flatMap(respond.enqueue1)
           case t =>
             Sync[F].delay(println(s"We encountered an error while creating game for $nickname, ${t.getStackTrace}")) *>
