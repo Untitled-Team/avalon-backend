@@ -7,7 +7,7 @@ import cats.implicits._
 import com.avalon.avalongame.RandomAlg
 import com.avalon.avalongame.common._
 
-case class AllReady(missionNumber: Int, missionLeader: Nickname, missions: Missions)
+case class AllReady(missionNumber: Int, missionLeader: Nickname, missions: Missions, nextMissionLeader: Nickname, proposalsLeft: Int)
 
 trait Room[F[_]] {
   def players: F[List[Nickname]]
@@ -57,12 +57,13 @@ object Room {
         def startGame: F[StartGameInfo] =
           mvar.take.flatMap { room =>
             (for {
-              missions      <- F.fromEither(Missions.fromPlayers(room.players.size))
-              roles         <- Utils.assignRoles(room.players, randomAlg.shuffle)
-              missionLeader <- randomAlg.randomGet(room.players)
-              repr          =  GameRepresentation(MissionProposing(1, missionLeader, 5), missions, roles.badGuys, roles.goodGuys, room.players)
-              _             <- mvar.put(room.copy(gameRepresentation = Some(repr)))
-              ready         =  AllReady(1, missionLeader, repr.missions)
+              missions          <- F.fromEither(Missions.fromPlayers(room.players.size))
+              roles             <- Utils.assignRoles(room.players, randomAlg.shuffle)
+              missionLeader     <- randomAlg.randomGet(room.players)
+              repr              =  GameRepresentation(MissionProposing(1, missionLeader, 5), missions, roles.badGuys, roles.goodGuys, room.players)
+              _                 <- mvar.put(room.copy(gameRepresentation = Some(repr)))
+              nextMissionLeader <- randomAlg.clockwise(missionLeader, room.players)
+              ready             =  AllReady(1, missionLeader, repr.missions, nextMissionLeader, 5)
             } yield StartGameInfo(AllPlayerRoles(repr.goodGuys, repr.badGuys), ready))
               .guaranteeCase {
                 case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
@@ -122,7 +123,15 @@ object Room {
                       updatedMissions <- F.fromEither(
                         Missions.addFinishedTeamVote(repr.missions, proposal.missionNumber, proposal.missionLeader, updatedState.votes))
                       newMissionLeader <- randomAlg.clockwise(proposal.missionLeader, room.players)
-                    } yield FailedVote(newMissionLeader, proposal.missionNumber, updatedState.votes, updatedMissions)).widen[TeamVoteEnum]
+                      nextMissionleader <- randomAlg.clockwise(newMissionLeader, room.players)
+                    } yield
+                      FailedVote(
+                        newMissionLeader,
+                        proposal.missionNumber,
+                        updatedState.votes,
+                        updatedMissions,
+                        nextMissionleader,
+                        proposal.votesLeft - 1)).widen[TeamVoteEnum]
 
                   else F.pure(SuccessfulVote(updatedState.votes)).widen[TeamVoteEnum]
                 else
@@ -130,10 +139,10 @@ object Room {
 
               updatedRepr <- result match {
                 case TeamPhaseStillVoting => F.pure(repr.copy(state = updatedState))
-                case FailedVote(ml, _, _, missions) =>
+                case FailedVote(ml, _, _, missions, _, votesLeft) =>
                   F.pure {
                     repr.copy(
-                      state = MissionProposing(proposal.missionNumber, ml, proposal.votesLeft - 1),//need to cycle mission leaders better
+                      state = MissionProposing(proposal.missionNumber, ml, votesLeft),//need to cycle mission leaders better
                       missions = missions)
                   }
                 case SuccessfulVote(votes) =>
@@ -148,7 +157,7 @@ object Room {
 
               gameOverCheck: Either[GameOver, TeamVoteEnum] <-
                 result match {
-                  case FailedVote(_, _, _, _) =>
+                  case FailedVote(_, _, _, _, _, _) =>
                     if ((proposal.votesLeft - 1) === 0)
                       badGuysWinGameOver(repr).map(Left(_))
                     else F.pure(Right(result))
@@ -235,11 +244,12 @@ object Room {
                   updatedState.info match {
                     case NextMission(previousLeader) =>
                       (for {
-                        nextMissionLeader <- randomAlg.clockwise(previousLeader, room.players)
+                        missionLeader <- randomAlg.clockwise(previousLeader, room.players)
+                        nextMissionLeader <- randomAlg.clockwise(missionLeader, room.players)
                         currentMission <- F.fromEither[Mission](Missions.currentMission(repr.missions))
                       } yield
-                        (GameContinues(nextMissionLeader, currentMission.number, repr.missions), //better way of starting it over at 0?
-                          repr.copy(state = MissionProposing(currentMission.number, nextMissionLeader, 5)))).widen[(AfterQuest, GameRepresentation)]
+                        (GameContinues(missionLeader, currentMission.number, repr.missions, nextMissionLeader, 5), //better way of starting it over at 0?
+                          repr.copy(state = MissionProposing(currentMission.number, missionLeader, 5)))).widen[(AfterQuest, GameRepresentation)]
                     case AssassinNeedsToVote => //better type check here???
                       F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow).map { assassin =>
                         (AssassinVote(assassin.nickname, repr.goodGuys, repr.missions), repr.copy(state = AssassinVoteState))
@@ -311,7 +321,12 @@ object Room {
 
 sealed trait TeamVoteEnum
 case object TeamPhaseStillVoting extends TeamVoteEnum
-case class FailedVote(newMissionLeader: Nickname, missionNumber: Int, votes: List[PlayerTeamVote], missions: Missions) extends TeamVoteEnum
+case class FailedVote(newMissionLeader: Nickname,
+                      missionNumber: Int,
+                      votes: List[PlayerTeamVote],
+                      missions: Missions,
+                      nextMissionLeader: Nickname,
+                      proposalsLeft: Int) extends TeamVoteEnum
 case class SuccessfulVote(votes: List[PlayerTeamVote]) extends TeamVoteEnum
 
 
@@ -329,4 +344,5 @@ case class BadGuyVictory(assassin: BadPlayerRole,
                          goodGuys: List[GoodPlayerRole],
                          badGuys: List[BadPlayerRole],
                          winningTeam: Side) extends AfterQuest
-case class GameContinues(missionLeader: Nickname, missionNumber: Int, missions: Missions) extends AfterQuest
+//votesLeft is something we maybe don't need to include here because we know it's 5...
+case class GameContinues(missionLeader: Nickname, missionNumber: Int, missions: Missions, nextMissionLeader: Nickname, votesLeft: Int) extends AfterQuest
