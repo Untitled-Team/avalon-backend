@@ -107,6 +107,14 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     partyApprovedJson should be(OutgoingEventEncoder.encoder(PartyApproved.make[IO].unsafeRunSync()))
   }
 
+  test("make sure we can encode PartyVotes event") {
+    forAll { partyVotes: PartyVotes =>
+      val json = partyVotesJson(partyVotes)
+
+      json should be(OutgoingEventEncoder.encoder(partyVotes))
+    }
+  }
+
   test("make sure we can encode QuestVoteAcknowledgement event") {
     val questVoteAckJson: Json =
       Json.obj("event" := "QuestVoteAcknowledgement", "id" := constant)
@@ -197,6 +205,15 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
 
   val partyApprovedJson: Json =
     Json.obj("event" := "PartyApproved", "id" := constant.show)
+
+  def partyVotesJson(partyVotes: PartyVotes): Json = {
+    Json.obj(
+      "event" := "PartyVotes",
+      "approvals" := partyVotes.approvals,
+      "denies" := partyVotes.denies,
+      "id" := partyVotes.id
+    )
+  }
 
   def passFailVoteResultsJson(passFailVoteResults: PassFailVoteResults): Json =
     Json.obj(
