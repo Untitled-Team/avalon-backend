@@ -555,14 +555,17 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
         new context {
 
           val sendRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
-          val sendToAllRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+          val sendToAllRef = Ref.of[IO, List[OutgoingEvent]](Nil).unsafeRunSync()
           val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+          val nickname2 = Nickname(java.util.UUID.randomUUID().toString)
           val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
           val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager {
             override def send(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = sendRef.set(Some(outgoingEvent))
-            override def sendToAll(event: OutgoingEvent): IO[Unit] = sendToAllRef.set(Some(event))
+            override def sendToAll(event: OutgoingEvent): IO[Unit] = sendToAllRef.update(_ ::: List(event))
           }
+
+          val playerTeamVotes = List(PlayerTeamVote(nickname1, TeamVote(true)), PlayerTeamVote(nickname2, TeamVote(false)))
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
             override def create: IO[RoomId] = IO.pure(roomId)
@@ -572,7 +575,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
                 override def players: IO[List[Nickname]] = IO(Nil)
                 override def addUser(player: Nickname): IO[Unit] = IO.unit
                 override def teamVote(nickname: Nickname, vote: TeamVote): IO[Either[GameOver, TeamVoteEnum]] =
-                  IO.pure(Right(FailedVote(nickname1, 1, Nil, missions)))
+                  IO.pure(Right(FailedVote(nickname1, 1, playerTeamVotes, missions)))
               }
             }
           }
@@ -591,7 +594,9 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
 
           sendRef.get.unsafeRunSync() should be(Some(PartyApprovalVoteAcknowledgement.make[IO].unsafeRunSync()))
           sendToAllRef.get.unsafeRunSync() should be(
-            Some(TeamAssignmentPhase.make[IO](1, nickname1, missions).unsafeRunSync()))
+            List(
+              PartyVotes.make[IO](List(nickname1), List(nickname2)).unsafeRunSync(),
+              TeamAssignmentPhase.make[IO](1, nickname1, missions).unsafeRunSync()))
         }
       }
     }
@@ -601,14 +606,17 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
         new context {
 
           val sendRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
-          val sendToAllRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+          val sendToAllRef = Ref.of[IO, List[OutgoingEvent]](Nil).unsafeRunSync()
           val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+          val nickname2 = Nickname(java.util.UUID.randomUUID().toString)
           val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
           val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager {
             override def send(nickname: Nickname, outgoingEvent: OutgoingEvent): IO[Unit] = sendRef.set(Some(outgoingEvent))
-            override def sendToAll(event: OutgoingEvent): IO[Unit] = sendToAllRef.set(Some(event))
+            override def sendToAll(event: OutgoingEvent): IO[Unit] = sendToAllRef.update(_ ::: List(event))
           }
+
+          val playerTeamVotes = List(PlayerTeamVote(nickname1, TeamVote(true)), PlayerTeamVote(nickname2, TeamVote(false)))
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
             override def create: IO[RoomId] = IO.pure(roomId)
@@ -618,7 +626,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
                 override def players: IO[List[Nickname]] = IO(Nil)
                 override def addUser(player: Nickname): IO[Unit] = IO.unit
                 override def teamVote(nickname: Nickname, vote: TeamVote): IO[Either[GameOver, TeamVoteEnum]] =
-                  IO.pure(Right(SuccessfulVote(Nil)))
+                  IO.pure(Right(SuccessfulVote(playerTeamVotes)))
               }
             }
           }
@@ -636,7 +644,10 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           ).unsafeRunSync()
 
           sendRef.get.unsafeRunSync() should be(Some(PartyApprovalVoteAcknowledgement.make[IO].unsafeRunSync()))
-          sendToAllRef.get.unsafeRunSync() should be(Some(PartyApproved.make[IO].unsafeRunSync()))
+          sendToAllRef.get.unsafeRunSync() should be(
+            List(
+              PartyVotes.make[IO](List(nickname1), List(nickname2)).unsafeRunSync(),
+              PartyApproved.make[IO].unsafeRunSync()))
         }
       }
     }

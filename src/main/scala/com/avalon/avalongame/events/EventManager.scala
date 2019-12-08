@@ -181,9 +181,16 @@ object EventManager {
           _ <- voteStatus match {
             case Right(teamVoteEnum) => teamVoteEnum match {
               case TeamPhaseStillVoting => F.unit
-              case FailedVote(missionLeader, missionNumber, _, missions) =>
-                TeamAssignmentPhase.make(missionNumber, missionLeader, missions).flatMap(outgoing.sendToAll)
-              case SuccessfulVote(_) => PartyApproved.make.flatMap(outgoing.sendToAll)
+              case FailedVote(missionLeader, missionNumber, partyVotes, missions) =>
+                val approvals = partyVotes.filter(_.vote === TeamVote(true)).map(_.nickname)
+                val denies = partyVotes.filter(_.vote === TeamVote(false)).map(_.nickname)
+                PartyVotes.make(approvals, denies).flatMap(outgoing.sendToAll) *>
+                  TeamAssignmentPhase.make(missionNumber, missionLeader, missions).flatMap(outgoing.sendToAll)
+              case SuccessfulVote(partyVotes) =>
+                val approvals = partyVotes.filter(_.vote === TeamVote(true)).map(_.nickname)
+                val denies = partyVotes.filter(_.vote === TeamVote(false)).map(_.nickname)
+                PartyVotes.make(approvals, denies).flatMap(outgoing.sendToAll) *>
+                  PartyApproved.make.flatMap(outgoing.sendToAll)
             }
             case Left(gameOver) =>
               GameOverOutgoingEvent.make(

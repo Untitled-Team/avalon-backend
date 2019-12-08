@@ -99,7 +99,7 @@ object PartyVotes {
   def make[F[_]: Sync](approvals: List[Nickname], denies: List[Nickname])(implicit R: RandomAlg[F]): F[PartyVotes] =
     R.fuuid.map(PartyVotes(approvals, denies, _))
 
-  implicit val encoder: Encoder[PartyApproved] = deriveEncoder
+  implicit val encoder: Encoder[PartyVotes] = deriveEncoder
 }
 
 
