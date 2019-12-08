@@ -149,8 +149,8 @@ object EventManager {
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
           _ <- startGameInfo.startingState match {
-            case AllReady(missionNumber, leader, missions) =>
-              TeamAssignmentPhase.make(missionNumber, leader, missions).flatMap(outgoing.sendToAll)
+            case AllReady(missionNumber, leader, missions, nextMissionLeader, proposalsLeft) =>
+              TeamAssignmentPhase.make(missionNumber, leader, missions, nextMissionLeader, proposalsLeft).flatMap(outgoing.sendToAll)
             case _ => F.unit
           }
         } yield ()).onError {
@@ -162,7 +162,7 @@ object EventManager {
           ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
           room          <- roomManager.get(ctx.roomId)
           proposal      <- room.proposeMission(ctx.nickname, players)
-          outgoingEvent <- ProposedParty.make(proposal.players, proposal.nextMissionLeader, proposal.votesLeft)
+          outgoingEvent <- ProposedParty.make(proposal.players)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
           _             <- outgoing.sendToAll(outgoingEvent)
@@ -181,11 +181,11 @@ object EventManager {
           _ <- voteStatus match {
             case Right(teamVoteEnum) => teamVoteEnum match {
               case TeamPhaseStillVoting => F.unit
-              case FailedVote(missionLeader, missionNumber, partyVotes, missions) =>
+              case FailedVote(missionLeader, missionNumber, partyVotes, missions, nextMissionLeader, votesLeft) =>
                 val approvals = partyVotes.filter(_.vote === TeamVote(true)).map(_.nickname)
                 val denies = partyVotes.filter(_.vote === TeamVote(false)).map(_.nickname)
                 PartyVotes.make(approvals, denies).flatMap(outgoing.sendToAll) *>
-                  TeamAssignmentPhase.make(missionNumber, missionLeader, missions).flatMap(outgoing.sendToAll)
+                  TeamAssignmentPhase.make(missionNumber, missionLeader, missions, nextMissionLeader, votesLeft).flatMap(outgoing.sendToAll)
               case SuccessfulVote(partyVotes) =>
                 val approvals = partyVotes.filter(_.vote === TeamVote(true)).map(_.nickname)
                 val denies = partyVotes.filter(_.vote === TeamVote(false)).map(_.nickname)
@@ -236,8 +236,8 @@ object EventManager {
               AssassinVoteOutgoingEvent.make(assassin, goodGuys.map(_.nickname), missions).flatMap(outgoing.sendToAll)
             case BadGuyVictory(assassin, _, merlin, goodGuys, badGuys, winningTeam) =>
               GameOverOutgoingEvent.make(assassin.nickname, None, merlin.nickname, goodGuys, badGuys, winningTeam).flatMap(outgoing.sendToAll)
-            case GameContinues(missionLeader, missionNumber, missions) =>
-              TeamAssignmentPhase.make(missionNumber, missionLeader, missions).flatMap(outgoing.sendToAll)
+            case GameContinues(missionLeader, missionNumber, missions, nextMissionLeader, votesLeft) =>
+              TeamAssignmentPhase.make(missionNumber, missionLeader, missions, nextMissionLeader, votesLeft).flatMap(outgoing.sendToAll)
           }
         } yield ()).onError {
           case t => Sync[F].delay(println(s"We encountered an error with PartyApprovalVote for ???,  ${t.getStackTrace}"))

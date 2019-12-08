@@ -191,6 +191,8 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "missionNumber" := missionProposalEvent.missionNumber,
       "missionLeader" := missionProposalEvent.missionLeader,
       "missions" := missionProposalEvent.missions,
+      "nextMissionLeader" := missionProposalEvent.nextMissionLeader,
+      "proposalsLeft" := missionProposalEvent.proposalsLeft,
       "id" := missionProposalEvent.id
     )
 
@@ -198,8 +200,6 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     Json.obj(
       "event" := "ProposedParty",
       "proposedParty" := proposedParty.proposedParty,
-      "nextMissionLeader" := proposedParty.nextMissionLeader,
-      "proposalsLeft" := proposedParty.proposalsLeft,
       "id" := proposedParty.id
     )
 
