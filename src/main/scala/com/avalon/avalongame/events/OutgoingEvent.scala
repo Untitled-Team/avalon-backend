@@ -103,6 +103,16 @@ object PartyApprovalVoteAcknowledgement {
   implicit val encoder: Encoder[PartyApprovalVoteAcknowledgement] = deriveEncoder
 }
 
+case class PartyVotes(approvals: List[Nickname], denies: List[Nickname], id: FUUID) extends OutgoingEvent
+
+object PartyVotes {
+  def make[F[_]: Sync](approvals: List[Nickname], denies: List[Nickname])(implicit R: RandomAlg[F]): F[PartyVotes] =
+    R.fuuid.map(PartyVotes(approvals, denies, _))
+
+  implicit val encoder: Encoder[PartyVotes] = deriveEncoder
+}
+
+
 case class PartyApproved(id: FUUID) extends OutgoingEvent
 
 object PartyApproved {
@@ -193,6 +203,7 @@ object OutgoingEventEncoder {
     case p@PlayerInfo(_, _, _)                   => PlayerInfo.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerInfo"))
     case g@TeamAssignmentPhase(_, _, _, _, _, _) => TeamAssignmentPhase.encoder.apply(g).deepMerge(Json.obj("event" := "TeamAssignmentPhase"))
     case g@ProposedParty(_, _)                   => ProposedParty.encoder.apply(g).deepMerge(Json.obj("event" := "ProposedParty"))
+    case p@PartyVotes(_, _, _)                   => PartyVotes.encoder.apply(p).deepMerge(Json.obj("event" := "PartyVotes"))
     case p@PartyApprovalVoteAcknowledgement(_)   => PartyApprovalVoteAcknowledgement.encoder.apply(p).deepMerge(Json.obj("event" := "PartyApprovalVoteAcknowledgement"))
     case p@PartyApproved(_)                      => PartyApproved.encoder.apply(p).deepMerge(Json.obj("event" := "PartyApproved"))
     case q@QuestVoteAcknowledgement(_)           => QuestVoteAcknowledgement.encoder.apply(q).deepMerge(Json.obj("event" := "QuestVoteAcknowledgement"))
