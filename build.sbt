@@ -69,12 +69,13 @@ dockerfile in docker := {
     entryPoint(
       "java",
       "-server",
-      "-Xms150m",
-      "-Xmx150m",
+      "-Xms50m",
+      "-Xmx50m",
       "-XX:NewRatio=2",
       "-XX:+UseConcMarkSweepGC",
       "-XX:+CMSParallelRemarkEnabled",
       "-XX:+AlwaysPreTouch",
+      "-XX:ActiveProcessorCount=2",
       "-XX:+HeapDumpOnOutOfMemoryError",
       "-jar",
       artifactTargetPath)
