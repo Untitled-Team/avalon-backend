@@ -7,6 +7,8 @@ import cats.implicits._
 import com.avalon.avalongame.RandomAlg
 import com.avalon.avalongame.common._
 
+case class GameConfig(characters: Character)
+
 case class AllReady(missionNumber: Int, missionLeader: Nickname, missions: Missions, nextMissionLeader: Nickname, proposalsLeft: Int)
 
 trait Room[F[_]] {
