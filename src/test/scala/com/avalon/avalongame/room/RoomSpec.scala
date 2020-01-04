@@ -761,6 +761,12 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
+        val updatedMissions = {
+          val default = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+
+          IO.fromEither(Missions.completeMission(default, 1, QuestVote(false))).unsafeRunSync()
+        }
+
         val gr = GameRepresentation(
           QuestPhase(1, user1, List(user1, user2), Nil),
           missions,
@@ -774,7 +780,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         room.questVote(user1, QuestVote(true)).unsafeRunSync() should be(QuestPhaseStillVoting)
         room.questVote(user2, QuestVote(false)).unsafeRunSync() should be(
-          FinishedVote(List(QuestVote(true), QuestVote(false)), GameContinues(user1, 2, missions, user1, 5)))
+          FinishedVote(List(QuestVote(true), QuestVote(false)), GameContinues(user1, 2, updatedMissions, user1, 5)))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
         val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 1)).unsafeRunSync()
@@ -798,6 +804,12 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         val missions = IO.fromEither(Missions.fromPlayers(7)).unsafeRunSync()
 
+        val updatedMissions = {
+          val default = IO.fromEither(Missions.fromPlayers(7)).unsafeRunSync()
+
+          IO.fromEither(Missions.completeMission(default, 1, QuestVote(false))).unsafeRunSync()
+        }
+
         val gr = GameRepresentation(
           QuestPhase(1, user1, List(user1, user2), Nil),
           missions,
@@ -816,7 +828,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         room.questVote(user1, QuestVote(true)).unsafeRunSync() should be(QuestPhaseStillVoting)
         room.questVote(user2, QuestVote(false)).unsafeRunSync() should be(
-          FinishedVote(List(QuestVote(true), QuestVote(false)), GameContinues(user1, 2, missions, user1, 5)))
+          FinishedVote(List(QuestVote(true), QuestVote(false)), GameContinues(user1, 2, updatedMissions, user1, 5)))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
         val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 1)).unsafeRunSync()
@@ -847,6 +859,9 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           IO.fromEither(Missions.completeMission(updateMissions2, 3, QuestVote(true))).unsafeRunSync()
         }
 
+        val updatedMissions =
+          IO.fromEither(Missions.completeMission(missions, 4, QuestVote(true))).unsafeRunSync()
+
         val gr = GameRepresentation(
           QuestPhase(4, user1, List(user1, user2, user3, user4), Nil),
           missions,
@@ -864,7 +879,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         room
           .questVote(user4, QuestVote(true))
           .unsafeRunSync() should be(FinishedVote(
-          List(QuestVote(false), QuestVote(true), QuestVote(true), QuestVote(true)), GameContinues(user1, 5, missions, user1, 5)))
+          List(QuestVote(false), QuestVote(true), QuestVote(true), QuestVote(true)), GameContinues(user1, 5, updatedMissions, user1, 5)))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
         val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 4)).unsafeRunSync()
@@ -895,6 +910,9 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           IO.fromEither(Missions.completeMission(updateMissions2, 3, QuestVote(true))).unsafeRunSync()
         }
 
+        val updatedMissions =
+          IO.fromEither(Missions.completeMission(missions, 4, QuestVote(false))).unsafeRunSync()
+
         val gr = GameRepresentation(
           QuestPhase(4, user1, List(user1, user2, user3, user4), Nil),
           missions,
@@ -913,7 +931,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           .questVote(user4, QuestVote(true))
           .unsafeRunSync() should be(FinishedVote(
           List(QuestVote(false), QuestVote(false), QuestVote(true), QuestVote(true)),
-          GameContinues(user1, 5, missions, user1, 5)))
+          GameContinues(user1, 5, updatedMissions, user1, 5)))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
         val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 4)).unsafeRunSync()
@@ -935,6 +953,8 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         val users = List(user1, user2, user3, user4, user5)
 
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
+        val updatedMissions =
+          IO.fromEither(Missions.completeMission(missions, 1, QuestVote(true))).unsafeRunSync()
 
         val gr = GameRepresentation(
           QuestPhase(1, user1, List(user3, user4), Nil),
@@ -949,7 +969,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         room.questVote(user3, QuestVote(false)).unsafeRunSync() should be(QuestPhaseStillVoting)
         room.questVote(user4, QuestVote(false)).unsafeRunSync() should be(FinishedVote(
-          List(QuestVote(true), QuestVote(true)), GameContinues(user1, 2, missions, user1, 5)))
+          List(QuestVote(true), QuestVote(true)), GameContinues(user1, 2, updatedMissions, user1, 5)))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
         val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 1)).unsafeRunSync()
@@ -1022,6 +1042,9 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           IO.fromEither(Missions.completeMission(updateMissions1, 2, QuestVote(true))).unsafeRunSync()
         }
 
+        val updatedMissions =
+          IO.fromEither(Missions.completeMission(missions, 3, QuestVote(true))).unsafeRunSync()
+
         val goodPlayerRoles = List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
 
         val gr = GameRepresentation(
@@ -1037,7 +1060,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         room.questVote(user1, QuestVote(true)).unsafeRunSync() should be(QuestPhaseStillVoting)
         room.questVote(user2, QuestVote(true)).unsafeRunSync() should be(FinishedVote(List(
-          QuestVote(true), QuestVote(true)), AssassinVote(user1, goodPlayerRoles, missions)))
+          QuestVote(true), QuestVote(true)), AssassinVote(user1, goodPlayerRoles, updatedMissions)))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
         val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 3)).unsafeRunSync()
@@ -1064,6 +1087,8 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
           val updateMissions1 = IO.fromEither(Missions.completeMission(default, 1, QuestVote(true))).unsafeRunSync()
           IO.fromEither(Missions.completeMission(updateMissions1, 2, QuestVote(false))).unsafeRunSync()
         }
+        val updatedMissions =
+          IO.fromEither(Missions.completeMission(missions, 3, QuestVote(true))).unsafeRunSync()
 
         val goodPlayerRoles = List(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
 
@@ -1080,7 +1105,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         room.questVote(user1, QuestVote(true)).unsafeRunSync() should be(QuestPhaseStillVoting)
         room.questVote(user2, QuestVote(true)).unsafeRunSync() should be(FinishedVote(List(
-          QuestVote(true), QuestVote(true)), GameContinues(user1, 4, missions, user1, 5)))
+          QuestVote(true), QuestVote(true)), GameContinues(user1, 4, updatedMissions, user1, 5)))
 
         val repr = mvar.read.unsafeRunSync().gameRepresentation.get
         val completedMission = IO.fromEither(Missions.fromInt(repr.missions, 1)).unsafeRunSync()

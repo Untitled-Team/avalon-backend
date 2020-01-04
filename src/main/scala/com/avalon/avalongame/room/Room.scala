@@ -213,7 +213,7 @@ object Room {
                             repr.copy(state = BadSideWins, missions = updatedMissions))).widen[(QuestVotingEnum, GameRepresentation)]
                       else if (Missions.successfulQuests(updatedMissions) === 3)
                         F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow).map { assassin =>
-                          (FinishedVote(finishedVoteCount, AssassinVote(assassin.nickname, repr.goodGuys, repr.missions)),
+                          (FinishedVote(finishedVoteCount, AssassinVote(assassin.nickname, repr.goodGuys, updatedMissions)),
                             repr.copy(state = AssassinVoteState, missions = updatedMissions))
                         }.widen[(QuestVotingEnum, GameRepresentation)]
                       else
@@ -222,7 +222,7 @@ object Room {
                           nextMissionLeader <- randomAlg.clockwise(missionLeader, room.players)
                           currentMission <- F.fromEither[Mission](Missions.currentMission(updatedMissions))
                         } yield
-                          (FinishedVote(finishedVoteCount, GameContinues(missionLeader, currentMission.number, repr.missions, nextMissionLeader, 5)), //better way of starting it over at 0?
+                          (FinishedVote(finishedVoteCount, GameContinues(missionLeader, currentMission.number, updatedMissions, nextMissionLeader, 5)), //better way of starting it over at 0?
                             repr.copy(
                               state = MissionProposing(currentMission.number, missionLeader, 5),
                               missions = updatedMissions))).widen[(QuestVotingEnum, GameRepresentation)]
