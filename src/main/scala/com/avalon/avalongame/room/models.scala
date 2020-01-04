@@ -164,10 +164,14 @@ object Role {
 }
 
 sealed trait BadGuy extends Role
+//case object Mordred extends BadGuy
+//case object Morgana extends BadGuy
+//case object Oberon extends BadGuy
 case object Assassin extends BadGuy
 case object NormalBadGuy extends BadGuy
 
 sealed trait GoodGuy extends Role
+//case object Percival extends GoodGuy
 case object Merlin extends GoodGuy
 case object NormalGoodGuy extends GoodGuy
 

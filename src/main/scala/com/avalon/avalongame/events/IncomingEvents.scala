@@ -46,7 +46,7 @@ object QuestVoteEvent {
   implicit val decoder: Decoder[QuestVoteEvent] = deriveDecoder
 }
 
-case object QuestVotesDisplayed extends IncomingEvent
+//case object QuestVotesDisplayed extends IncomingEvent
 
 case class IncomingAssassinVote(guess: Nickname) extends IncomingEvent
 object IncomingAssassinVote {
@@ -66,7 +66,7 @@ object IncomingEventDecoder {
         case "ProposeParty"         => ProposeParty.decoder.decodeJson(hcursor.value)
         case "PartyApprovalVote"    => PartyApprovalVote.decoder.decodeJson(hcursor.value)
         case "QuestVote"            => QuestVoteEvent.decoder.decodeJson(hcursor.value)
-        case "QuestVotesDisplayed"  => Right(QuestVotesDisplayed)
+//        case "QuestVotesDisplayed"  => Right(QuestVotesDisplayed)
         case "AssassinVote"         => IncomingAssassinVote.decoder.decodeJson(hcursor.value)
         case e                      => Left(DecodingFailure(s"Invalid IncomingEvent event found: $e", hcursor.history))
       }

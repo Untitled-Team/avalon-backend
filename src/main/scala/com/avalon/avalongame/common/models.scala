@@ -46,9 +46,20 @@ object User {
   implicit val encoder: Encoder[User] = deriveEncoder
 }
 
-case class GameConfig(merlin: Boolean, assassin: Boolean)
+case class GameConfig(percival: Boolean,
+                      mordred: Boolean,
+                      oberon: Boolean,
+                      morgana: Boolean)
 
 object GameConfig {
+  case class MerlinConfig(value: Boolean) extends AnyVal
+  case class PercivalConfig(value: Boolean) extends AnyVal
+  case class AssassinConfig(value: Boolean) extends AnyVal
+  case class MordredConfig(value: Boolean) extends AnyVal
+  case class OberonConfig(value: Boolean) extends AnyVal
+  case class MorganaConfig(value: Boolean) extends AnyVal
+
+//  val default: GameConfig = GameConfig()
   implicit val decoder: Decoder[GameConfig] = deriveDecoder
   implicit val encoder: Encoder[GameConfig] = deriveEncoder
 }

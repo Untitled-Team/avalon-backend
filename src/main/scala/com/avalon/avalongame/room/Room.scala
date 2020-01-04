@@ -17,7 +17,6 @@ trait Room[F[_]] {
   def proposeMission(nickname: Nickname, users: List[Nickname]): F[MissionProposal]
   def teamVote(nickname: Nickname, vote: TeamVote): F[Either[GameOver, TeamVoteEnum]]
   def questVote(nickname: Nickname, vote: QuestVote): F[QuestVotingEnum]
-  def questResultsSeen(nickname: Nickname): F[AfterQuest]
   def assassinVote(assassin: Nickname, guess: Nickname): F[GameOver]
 }
 
@@ -191,81 +190,46 @@ object Room {
                   F.raiseError[QuestPhase](PlayerCantVoteMoreThanOnce(nickname))
                 else F.pure(questPhase.copy(votes = questPhase.votes :+ PlayerQuestVote(nickname, validPlayerVote)))
 
-              currentNumberOfAdventurers <- F.fromEither(Missions.fromInt(repr.missions, questPhase.missionNumber)).map(_.numberOfAdventurers)
+              currentMission <- F.fromEither(Missions.currentMission(repr.missions))
+
+              currentNumberOfAdventurers = currentMission.numberOfAdventurers
 
               currentMissionPassStatus =
-                if (room.players.size >= 7 && questPhase.missionNumber === 4) !(updatedState.votes.map(_.vote).count(_ === QuestVote(false)) >= 2)
+                if (room.players.size >= 7 && currentMission.number === 4) !(updatedState.votes.map(_.vote).count(_ === QuestVote(false)) >= 2)
                 else !updatedState.votes.map(_.vote).contains(QuestVote(false))
 
-              updatedRepr <-
-                if (updatedState.votes.size === currentNumberOfAdventurers)
-                  F.fromEither[Missions](
-                    Missions.completeMission(repr.missions, questPhase.missionNumber, QuestVote(currentMissionPassStatus)))
-                    .map[GameRepresentation] { updatedMissions =>
+              questVoteResult <-
+                if (updatedState.votes.size === currentNumberOfAdventurers) {
+                  F.fromEither[Missions](Missions.completeMission(repr.missions, currentMission.number, QuestVote(currentMissionPassStatus)))
+                    .flatMap[(QuestVotingEnum, GameRepresentation)] { updatedMissions =>
+                      val finishedVoteCount = updatedState.votes.map(_.vote)
+
                       if (Missions.failedQuests(updatedMissions) === 3)
-                        repr.copy(state = QuestResultsViewing(BadGuysWin, Nil), missions = updatedMissions)
+                        (for {
+                          assassin <- F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow)
+                          merlin   <- F.fromOption(repr.goodGuys.find(_.role == Merlin), NoPlayerIsMerlinSomehow)
+                        } yield
+                          (FinishedVote(finishedVoteCount, BadGuyVictory(assassin, None, merlin, repr.goodGuys, repr.badGuys, BadGuys)),
+                            repr.copy(state = BadSideWins, missions = updatedMissions))).widen[(QuestVotingEnum, GameRepresentation)]
                       else if (Missions.successfulQuests(updatedMissions) === 3)
-                        repr.copy(state = QuestResultsViewing(AssassinNeedsToVote, Nil), missions = updatedMissions)
-                      else repr.copy(state = QuestResultsViewing(NextMission(questPhase.missionLeader), Nil), missions = updatedMissions)
-                    }
-                else
-                  F.pure(repr.copy(state = updatedState))
-
-
-              result <-
-                if (updatedState.votes.size === currentNumberOfAdventurers)
-                  F.pure(FinishedVote(updatedState.votes.map(_.vote))).widen[QuestVotingEnum]
-                else F.pure(QuestPhaseStillVoting).widen[QuestVotingEnum]
-
-              _ <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
-            } yield result)
-              .guaranteeCase {
-                case ExitCase.Error(_) | ExitCase.Canceled => mvar.put(room)
-                case ExitCase.Completed => F.unit
-              }
-          }
-
-        def questResultsSeen(nickname: Nickname): F[AfterQuest] =
-          mvar.take.flatMap { room =>
-            (for {
-              repr <- F.fromOption(room.gameRepresentation, GameNotStarted)
-              questResultsViewing <- repr.state match {
-                case q@QuestResultsViewing(_, _) => F.pure(q)
-                case _ => F.raiseError[QuestResultsViewing](InvalidStateTransition(repr.state, "questResultsSeen", nickname))
-              }
-
-              updatedState <-
-                if (questResultsViewing.viewed.contains(nickname))
-                  F.raiseError[QuestResultsViewing](PlayerAlreadyViewedQuestResults(nickname))
-                else F.pure(questResultsViewing.copy(viewed = questResultsViewing.viewed :+ nickname))
-
-              resultAndUpdatedRepr <-
-                if (updatedState.viewed.size === repr.users.size)
-                  updatedState.info match {
-                    case NextMission(previousLeader) =>
-                      (for {
-                        missionLeader <- randomAlg.clockwise(previousLeader, room.players)
-                        nextMissionLeader <- randomAlg.clockwise(missionLeader, room.players)
-                        currentMission <- F.fromEither[Mission](Missions.currentMission(repr.missions))
-                      } yield
-                        (GameContinues(missionLeader, currentMission.number, repr.missions, nextMissionLeader, 5), //better way of starting it over at 0?
-                          repr.copy(state = MissionProposing(currentMission.number, missionLeader, 5)))).widen[(AfterQuest, GameRepresentation)]
-                    case AssassinNeedsToVote => //better type check here???
-                      F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow).map { assassin =>
-                        (AssassinVote(assassin.nickname, repr.goodGuys, repr.missions), repr.copy(state = AssassinVoteState))
-                      }.widen[(AfterQuest, GameRepresentation)]
-                    case BadGuysWin =>
-                      (for {
-                        assassin <- F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow)
-                        merlin   <- F.fromOption(repr.goodGuys.find(_.role == Merlin), NoPlayerIsMerlinSomehow)
-                      } yield
-                        (BadGuyVictory(assassin, None, merlin, repr.goodGuys, repr.badGuys, BadGuys), repr.copy(BadSideWins)))
-                        .widen[(AfterQuest, GameRepresentation)]
+                        F.fromOption(repr.badGuys.find(_.role == Assassin), NoPlayerIsTheAssassinSomehow).map { assassin =>
+                          (FinishedVote(finishedVoteCount, AssassinVote(assassin.nickname, repr.goodGuys, repr.missions)),
+                            repr.copy(state = AssassinVoteState, missions = updatedMissions))
+                        }.widen[(QuestVotingEnum, GameRepresentation)]
+                      else
+                        (for {
+                          missionLeader <- randomAlg.clockwise(questPhase.missionLeader, room.players)
+                          nextMissionLeader <- randomAlg.clockwise(missionLeader, room.players)
+                          currentMission <- F.fromEither[Mission](Missions.currentMission(updatedMissions))
+                        } yield
+                          (FinishedVote(finishedVoteCount, GameContinues(missionLeader, currentMission.number, repr.missions, nextMissionLeader, 5)), //better way of starting it over at 0?
+                            repr.copy(
+                              state = MissionProposing(currentMission.number, missionLeader, 5),
+                              missions = updatedMissions))).widen[(QuestVotingEnum, GameRepresentation)]
                   }
-                else
-                  F.pure((StillViewingQuestResults, repr.copy(state = updatedState))).widen[(AfterQuest, GameRepresentation)]
+                } else F.pure( (QuestPhaseStillVoting, repr.copy(state = updatedState)) ).widen[(QuestVotingEnum, GameRepresentation)]
 
-              (result, updatedRepr) = resultAndUpdatedRepr
+              (result, updatedRepr) = questVoteResult
 
               _ <- mvar.put(room.copy(gameRepresentation = Some(updatedRepr)))
             } yield result)
@@ -332,11 +296,11 @@ case class SuccessfulVote(votes: List[PlayerTeamVote]) extends TeamVoteEnum
 
 sealed trait QuestVotingEnum
 case object QuestPhaseStillVoting extends QuestVotingEnum
-case class FinishedVote(votes: List[QuestVote]) extends QuestVotingEnum
+case class FinishedVote(votes: List[QuestVote], afterQuest: AfterQuest) extends QuestVotingEnum
 
 
 sealed trait AfterQuest
-case object StillViewingQuestResults extends AfterQuest
+//case object StillViewingQuestResults extends AfterQuest
 case class AssassinVote(assassin: Nickname, goodGuys: List[GoodPlayerRole], missions: Missions) extends AfterQuest
 case class BadGuyVictory(assassin: BadPlayerRole,
                          assassinGuess: Option[Nickname],
