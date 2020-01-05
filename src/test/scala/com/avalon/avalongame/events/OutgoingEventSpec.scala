@@ -231,10 +231,10 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "event" := "AssassinVote",
       "assassinVoteData" := Json.obj(
         "assassin" := assassinVote.assassin,
-        "goodGuys" := assassinVote.goodGuys,
-        "id" := assassinVote.id
+        "goodGuys" := assassinVote.goodGuys
       ),
-      "missions" := assassinVote.missions
+      "missions" := assassinVote.missions,
+      "id" := assassinVote.id
     )
 
   def gameOverJson(gameOver: GameOverOutgoingEvent): Json =
@@ -246,9 +246,9 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
         "merlin" := gameOver.merlin,
         "goodGuys" := gameOver.goodGuys.map(_.nickname.value),
         "badGuys" := gameOver.badGuys.map(_.nickname.value),
-        "winningTeam" := gameOver.winningTeam,
-        "id" := gameOver.id
-      )
+        "winningTeam" := gameOver.winningTeam
+      ),
+      "id" := gameOver.id
     )
 
   val gameNoLongerExistsJson: Json =

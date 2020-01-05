@@ -160,9 +160,9 @@ object AssassinVoteOutgoingEvent {
       "assassinVoteData" :=
         Json.obj(
           "assassin" := aVote.assassin,
-          "goodGuys" := aVote.goodGuys,
-          "id" := aVote.id),
-      "missions" := aVote.missions)
+          "goodGuys" := aVote.goodGuys),
+      "missions" := aVote.missions,
+      "id" := aVote.id)
   }
 }
 
@@ -192,9 +192,9 @@ object GameOverOutgoingEvent {
         "merlin" :=  gameOver.merlin,
         "goodGuys" := gameOver.goodGuys.map(_.nickname),
         "badGuys" := gameOver.badGuys.map(_.nickname),
-        "winningTeam" :=  gameOver.winningTeam,
-        "id" := gameOver.id
-      )
+        "winningTeam" :=  gameOver.winningTeam
+      ),
+      "id" := gameOver.id
     )
   }
 }
