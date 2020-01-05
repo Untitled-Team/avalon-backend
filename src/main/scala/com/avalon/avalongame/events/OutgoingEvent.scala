@@ -58,14 +58,20 @@ object PlayerReadyAcknowledgement {
   implicit val encoder: Encoder[PlayerReadyAcknowledgement] = deriveEncoder
 }
 
-case class PlayerInfo(character: Role, badGuys: Option[List[BadPlayerRole]], id: FUUID) extends OutgoingEvent
+case class PlayerInfo(character: Role, badGuys: Option[List[BadPlayerRole]], merlin: Option[List[PlayerRole]], id: FUUID) extends OutgoingEvent
 
 object PlayerInfo {
-  def make[F[_]: Sync](character: Role, badGuys: Option[List[BadPlayerRole]])(implicit R: RandomAlg[F]): F[PlayerInfo] =
-    R.fuuid.map(PlayerInfo(character, badGuys, _))
+  def make[F[_]: Sync](character: Role,
+                       badGuys: Option[List[BadPlayerRole]],
+                       merlin: Option[List[PlayerRole]])(implicit R: RandomAlg[F]): F[PlayerInfo] =
+    R.fuuid.map(PlayerInfo(character, badGuys, merlin, _))
 
   implicit val encoder: Encoder[PlayerInfo] = Encoder.instance { info =>
-    Json.obj("character" := info.character, "badGuys" := info.badGuys.map(_.map(_.nickname)), "id" := info.id)
+    Json.obj(
+      "character" := info.character,
+      "badGuys" := info.badGuys.map(_.map(_.nickname)),
+      "merlin" := info.merlin.map(_.map(_.nickname)),
+      "id" := info.id)
   }
 }
 
@@ -200,7 +206,7 @@ object OutgoingEventEncoder {
     case g@GameLeft(_)                           => GameLeft.encoder.apply(g).deepMerge(Json.obj("event" := "GameLeft"))
     case g@GameNoLongerExists(_)                 => GameNoLongerExists.encoder.apply(g).deepMerge(Json.obj("event" := "GameNoLongerExists"))
     case p@PlayerReadyAcknowledgement(_)         => PlayerReadyAcknowledgement.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerReadyAcknowledgement"))
-    case p@PlayerInfo(_, _, _)                   => PlayerInfo.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerInfo"))
+    case p@PlayerInfo(_, _, _, _)                => PlayerInfo.encoder.apply(p).deepMerge(Json.obj("event" := "PlayerInfo"))
     case g@TeamAssignmentPhase(_, _, _, _, _, _) => TeamAssignmentPhase.encoder.apply(g).deepMerge(Json.obj("event" := "TeamAssignmentPhase"))
     case g@ProposedParty(_, _)                   => ProposedParty.encoder.apply(g).deepMerge(Json.obj("event" := "ProposedParty"))
     case p@PartyVotes(_, _, _)                   => PartyVotes.encoder.apply(p).deepMerge(Json.obj("event" := "PartyVotes"))

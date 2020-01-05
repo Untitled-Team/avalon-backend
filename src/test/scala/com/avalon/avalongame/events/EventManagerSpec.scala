@@ -462,6 +462,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val sendToAllRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
 
           val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
+          val nickname2 = Nickname(java.util.UUID.randomUUID().toString)
           val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
           val mockOutgoingManager: OutgoingManager[IO] = new MockOutgoingManager {
@@ -477,10 +478,10 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
               new MockRoom {
                 override def players: IO[List[Nickname]] = IO(Nil)
                 override def addUser(player: Nickname): IO[Unit] = IO.unit
-                override def startGame: IO[StartGameInfo] =
+                override def startGame(gameConfig: GameConfig): IO[StartGameInfo] =
                   IO.pure(
                     StartGameInfo(
-                      AllPlayerRoles(Nil, List(BadPlayerRole(nickname1, Assassin))),
+                      AllPlayerRoles(List(GoodPlayerRole(nickname2, Merlin)), List(BadPlayerRole(nickname1, Assassin))),
                       AllReady(1, nickname1, missions, nickname1, 5)))
               }
             }
@@ -491,7 +492,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
           EventManager.handleEvent[IO](
-            StartGame,
+            StartGame(Some(GameConfig.default)),
             userQueue,
             mockRoomManager,
             outgoingRef,
@@ -500,7 +501,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
 
           sendToAllUserSpecificRef.get.unsafeRunSync() should be(
             Some(
-              PlayerInfo.make[IO](Assassin, Some(List(BadPlayerRole(nickname1, Assassin)))).unsafeRunSync()))
+              PlayerInfo.make[IO](Assassin, Some(List(BadPlayerRole(nickname1, Assassin))), None).unsafeRunSync()))
 
           sendToAllRef.get.unsafeRunSync() should be(
             Some(

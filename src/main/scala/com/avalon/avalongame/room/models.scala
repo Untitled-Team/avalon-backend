@@ -30,6 +30,8 @@ case class InvalidMissionNumber(n: Int) extends RuntimeException with NoStackTra
 case class NotEnoughPlayers(playerCount: Int) extends RuntimeException with NoStackTrace
 case object GameNotStarted extends RuntimeException with NoStackTrace
 case class PlayerAlreadyReady(nickname: Nickname) extends RuntimeException with NoStackTrace
+case object TooManySpecialCharacters extends RuntimeException with NoStackTrace
+case object TooManyBadSpecialCharacters extends RuntimeException with NoStackTrace
 
 //==================
 // Game stuff
@@ -164,14 +166,14 @@ object Role {
 }
 
 sealed trait BadGuy extends Role
-//case object Mordred extends BadGuy
-//case object Morgana extends BadGuy
-//case object Oberon extends BadGuy
+case object Mordred extends BadGuy
+case object Morgana extends BadGuy
+case object Oberon extends BadGuy
 case object Assassin extends BadGuy
 case object NormalBadGuy extends BadGuy
 
 sealed trait GoodGuy extends Role
-//case object Percival extends GoodGuy
+case object Percival extends GoodGuy
 case object Merlin extends GoodGuy
 case object NormalGoodGuy extends GoodGuy
 
@@ -181,6 +183,7 @@ case object GoodGuys extends Side
 
 
 sealed trait PlayerRole {
+  def nickname: Nickname
   def role: Role
 }
 case class GoodPlayerRole(nickname: Nickname, role: GoodGuy) extends PlayerRole

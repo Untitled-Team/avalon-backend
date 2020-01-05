@@ -3,6 +3,7 @@ package common
 
 import cats.data.NonEmptyList
 import cats.{Eq, Show}
+import com.avalon.avalongame.common.GameConfig.{MordredConfig, MorganaConfig, OberonConfig, PercivalConfig}
 import io.circe.Decoder
 import io.circe._
 import io.circe.generic.semiauto._
@@ -46,22 +47,40 @@ object User {
   implicit val encoder: Encoder[User] = deriveEncoder
 }
 
-case class GameConfig(percival: Boolean,
-                      mordred: Boolean,
-                      oberon: Boolean,
-                      morgana: Boolean)
+case class GameConfig(percival: PercivalConfig,
+                      mordred: MordredConfig,
+                      oberon: OberonConfig,
+                      morgana: MorganaConfig)
 
 object GameConfig {
-  case class MerlinConfig(value: Boolean) extends AnyVal
   case class PercivalConfig(value: Boolean) extends AnyVal
-  case class AssassinConfig(value: Boolean) extends AnyVal
-  case class MordredConfig(value: Boolean) extends AnyVal
-  case class OberonConfig(value: Boolean) extends AnyVal
-  case class MorganaConfig(value: Boolean) extends AnyVal
+  object PercivalConfig {
+    implicit val decoder: Decoder[PercivalConfig] = deriveUnwrappedDecoder
+    implicit val encoder: Encoder[PercivalConfig] = deriveUnwrappedEncoder
+  }
 
-//  val default: GameConfig = GameConfig()
+  case class MordredConfig(value: Boolean) extends AnyVal
+  object MordredConfig {
+    implicit val decoder: Decoder[MordredConfig] = deriveUnwrappedDecoder
+    implicit val encoder: Encoder[MordredConfig] = deriveUnwrappedEncoder
+  }
+
+  case class OberonConfig(value: Boolean) extends AnyVal
+  object OberonConfig {
+    implicit val decoder: Decoder[OberonConfig] = deriveUnwrappedDecoder
+    implicit val encoder: Encoder[OberonConfig] = deriveUnwrappedEncoder
+  }
+
+  case class MorganaConfig(value: Boolean) extends AnyVal
+  object MorganaConfig {
+    implicit val decoder: Decoder[MorganaConfig] = deriveUnwrappedDecoder
+    implicit val encoder: Encoder[MorganaConfig] = deriveUnwrappedEncoder
+  }
+
   implicit val decoder: Decoder[GameConfig] = deriveDecoder
   implicit val encoder: Encoder[GameConfig] = deriveEncoder
+
+  val default: GameConfig = GameConfig(PercivalConfig(false), MordredConfig(false), OberonConfig(false), MorganaConfig(false))
 }
 
 case class RoomInfo(players: List[Nickname], config: GameConfig)

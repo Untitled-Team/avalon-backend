@@ -64,7 +64,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         room.players.unsafeRunSync() should contain allOf(user1, user2, user3, user4, user5)
 
-        room.startGame.unsafeRunSync()
+        room.startGame(GameConfig.default).unsafeRunSync()
 
         room.addUser(Nickname("new user")).attempt.unsafeRunSync() should be(Left(GameHasStarted))
       }
@@ -161,7 +161,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
 
         room.players.unsafeRunSync() should contain allOf(user1, user2, user3, user4, user5)
 
-        room.startGame.unsafeRunSync()
+        room.startGame(GameConfig.default).unsafeRunSync()
 
         room.removePlayer(user1).attempt.unsafeRunSync() should be(Left(GameHasStarted))
       }
@@ -205,7 +205,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
       forAll { (roomId: RoomId, config: GameConfig) =>
         val room = Room.build(mockRandomAlg, roomId).unsafeRunSync()
 
-        room.startGame.attempt.unsafeRunSync() should be(Left(NotEnoughPlayers(0)))
+        room.startGame(GameConfig.default).attempt.unsafeRunSync() should be(Left(NotEnoughPlayers(0)))
       }
     }
 
@@ -230,7 +230,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         room.addUser(user4).unsafeRunSync()
         room.addUser(user5).unsafeRunSync()
 
-        val result = room.startGame.unsafeRunSync()
+        val result = room.startGame(GameConfig.default).unsafeRunSync()
 
         result.roles.badGuys should contain allOf(BadPlayerRole(user1, Assassin), BadPlayerRole(user2, NormalBadGuy))
         result.roles.goodGuys should contain allOf(GoodPlayerRole(user3, Merlin), GoodPlayerRole(user4, NormalGoodGuy), GoodPlayerRole(user5, NormalGoodGuy))
@@ -262,7 +262,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         room.addUser(user4).unsafeRunSync()
         room.addUser(user5).unsafeRunSync()
 
-        room.startGame.unsafeRunSync()
+        room.startGame(GameConfig.default).unsafeRunSync()
 
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
@@ -290,7 +290,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         room.addUser(user4).unsafeRunSync()
         room.addUser(user5).unsafeRunSync()
 
-        room.startGame.unsafeRunSync()
+        room.startGame(GameConfig.default).unsafeRunSync()
 
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
@@ -341,7 +341,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         room.addUser(user4).unsafeRunSync()
         room.addUser(user5).unsafeRunSync()
 
-        room.startGame.unsafeRunSync()
+        room.startGame(GameConfig.default).unsafeRunSync()
 
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
@@ -372,7 +372,7 @@ class RoomSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks with
         room.addUser(user4).unsafeRunSync()
         room.addUser(user5).unsafeRunSync()
 
-        room.startGame.unsafeRunSync()
+        room.startGame(GameConfig.default).unsafeRunSync()
 
         val missions = IO.fromEither(Missions.fromPlayers(5)).unsafeRunSync()
 
