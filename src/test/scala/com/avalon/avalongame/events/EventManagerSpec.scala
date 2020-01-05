@@ -6,6 +6,7 @@ import cats.effect.concurrent.{MVar, Ref}
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
 import com.avalon.avalongame.RandomAlg
+import com.avalon.avalongame.common.GameConfig.PercivalConfig
 import com.avalon.avalongame.common._
 import com.avalon.avalongame.events.EventManager.NoContext
 import com.avalon.avalongame.room._
@@ -459,7 +460,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
         new context {
 
           val sendToAllUserSpecificRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
-          val sendToAllRef = Ref.of[IO, Option[OutgoingEvent]](None).unsafeRunSync()
+          val sendToAllRef = Ref.of[IO, List[OutgoingEvent]](Nil).unsafeRunSync()
 
           val nickname1 = Nickname(java.util.UUID.randomUUID().toString)
           val nickname2 = Nickname(java.util.UUID.randomUUID().toString)
@@ -469,7 +470,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
             override def sendToAllUserSpecific(outgoingF: Nickname => IO[OutgoingEvent]): IO[Unit] =
               sendToAllUserSpecificRef.set(Some(outgoingF(nickname1).unsafeRunSync()))
             override def sendToAll(event: OutgoingEvent): IO[Unit] =
-              sendToAllRef.set(Some(event))
+              sendToAllRef.update(_ ::: List(event))
           }
 
           val mockRoomManager: RoomManager[IO] = new RoomManager[IO] {
@@ -492,7 +493,7 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
           val userQueue = Queue.bounded[IO, OutgoingEvent](10).unsafeRunSync()
 
           EventManager.handleEvent[IO](
-            StartGame(Some(GameConfig.default)),
+            StartGame(Some(GameConfig.default.copy(percival = PercivalConfig(true)))),
             userQueue,
             mockRoomManager,
             outgoingRef,
@@ -504,8 +505,9 @@ class EventManagerSpec extends WordSpec with Matchers with ScalaCheckPropertyChe
               PlayerInfo.make[IO](Assassin, Some(List(BadPlayerRole(nickname1, Assassin))), None).unsafeRunSync()))
 
           sendToAllRef.get.unsafeRunSync() should be(
-            Some(
-              TeamAssignmentPhase.make[IO](1, nickname1, missions, nickname1, 5).unsafeRunSync()))
+            List(
+              TeamAssignmentPhase.make[IO](1, nickname1, missions, nickname1, 5).unsafeRunSync(),
+              GameConfigEvent.make[IO](GameConfig.default.copy(percival = PercivalConfig(true))).unsafeRunSync))
         }
       }
     }
