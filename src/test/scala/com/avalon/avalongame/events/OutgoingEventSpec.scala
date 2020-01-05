@@ -89,6 +89,14 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
     }
   }
 
+  test("make sure we can encode GameConfigEvent event") {
+    forAll { gameConfigEvent: GameConfigEvent =>
+      val json = gameConfigEventJson(gameConfigEvent)
+
+      json should be(OutgoingEventEncoder.encoder(gameConfigEvent))
+    }
+  }
+
   test("make sure we can encode ProposedParty event") {
     forAll { proposedParty: ProposedParty =>
       val json = proposedPartyJson(proposedParty)
@@ -197,6 +205,18 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "nextMissionLeader" := missionProposalEvent.nextMissionLeader,
       "proposalsLeft" := missionProposalEvent.proposalsLeft,
       "id" := missionProposalEvent.id
+    )
+
+  def gameConfigEventJson(gameConfig: GameConfigEvent): Json =
+    Json.obj(
+      "event" := "GameConfig",
+      "config" := Json.obj(
+        "percival" := gameConfig.config.percival,
+        "morgana" := gameConfig.config.morgana,
+        "mordred" := gameConfig.config.mordred,
+        "oberon" := gameConfig.config.oberon
+      ),
+      "id" := gameConfig.id
     )
 
   def proposedPartyJson(proposedParty: ProposedParty): Json =
