@@ -49,8 +49,6 @@ object QuestVoteEvent {
   implicit val decoder: Decoder[QuestVoteEvent] = deriveDecoder
 }
 
-//case object QuestVotesDisplayed extends IncomingEvent
-
 case class IncomingAssassinVote(guess: Nickname) extends IncomingEvent
 object IncomingAssassinVote {
   implicit val decoder: Decoder[IncomingAssassinVote] = deriveDecoder
