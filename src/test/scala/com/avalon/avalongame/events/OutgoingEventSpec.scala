@@ -39,9 +39,11 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
   implicit val playerRoleEventArb: Arbitrary[PlayerInfo] = Arbitrary {
     for {
       badGuys <- Gen.listOf[BadPlayerRole](Arbitrary.arbitrary[BadPlayerRole])
+      merlin <- Arbitrary.arbitrary[Nickname].map(GoodPlayerRole(_, Merlin))
+      morgana <- Arbitrary.arbitrary[Nickname].map(BadPlayerRole(_, Morgana))
       role <- Arbitrary.arbitrary[Role]
-      charRole = CharacterRole.fromRole(role, badGuys)
-    } yield PlayerInfo.make[IO](charRole.character, charRole.badGuys).unsafeRunSync()
+      charRole = CharacterRole.fromRole(role, badGuys, merlin, Some(morgana))
+    } yield PlayerInfo.make[IO](charRole.character, charRole.badGuys, Some(List(merlin, morgana))).unsafeRunSync()
   }
 
   test("make sure we can encode GameCreated event") {
@@ -182,6 +184,7 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "event" := "PlayerInfo",
       "character" := playerRoleEvent.character,
       "badGuys" := playerRoleEvent.badGuys.map(_.map(_.nickname)),
+      "merlin" := playerRoleEvent.merlin.map(_.map(_.nickname)),
       "id" := playerRoleEvent.id
     )
 

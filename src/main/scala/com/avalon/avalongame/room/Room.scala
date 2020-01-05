@@ -13,7 +13,7 @@ trait Room[F[_]] {
   def players: F[List[Nickname]]
   def addUser(player: Nickname): F[Unit]
   def removePlayer(player: Nickname): F[Unit]
-  def startGame: F[StartGameInfo]
+  def startGame(gameConfig: GameConfig): F[StartGameInfo]
   def proposeMission(nickname: Nickname, users: List[Nickname]): F[MissionProposal]
   def teamVote(nickname: Nickname, vote: TeamVote): F[Either[GameOver, TeamVoteEnum]]
   def questVote(nickname: Nickname, vote: QuestVote): F[QuestVotingEnum]
@@ -53,11 +53,11 @@ object Room {
               mvar.put(room.copy(players = room.players.filter(_ =!= player)))
           }
 
-        def startGame: F[StartGameInfo] =
+        def startGame(gameConfig: GameConfig): F[StartGameInfo] =
           mvar.take.flatMap { room =>
             (for {
               missions          <- F.fromEither(Missions.fromPlayers(room.players.size))
-              roles             <- Utils.assignRoles(room.players, randomAlg.shuffle)
+              roles             <- Utils.assignRoles(room.players, gameConfig, randomAlg.shuffle)
               missionLeader     <- randomAlg.randomGet(room.players)
               repr              =  GameRepresentation(MissionProposing(1, missionLeader, 5), missions, roles.badGuys, roles.goodGuys, room.players)
               _                 <- mvar.put(room.copy(gameRepresentation = Some(repr)))

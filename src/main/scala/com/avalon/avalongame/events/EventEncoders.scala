@@ -29,18 +29,16 @@ object EventEncoders {
 
   implicit val characterEncoder: Encoder[Role] = Encoder.encodeString.contramap {
     case Assassin => "Assassin"
+    case Oberon => "Oberon"
+    case Morgana => "Morgana"
+    case Mordred => "Mordred"
     case NormalBadGuy => "NormalBadGuy"
     case Merlin => "Merlin"
+    case Percival => "Percival"
     case NormalGoodGuy => "NormalGoodGuy"
   }
 
   implicit val badPlayerRoleEncoder: Encoder[BadPlayerRole] = Nickname.encoder.contramap(_.nickname)
-
-  implicit val characterRoleEncoder: Encoder[CharacterRole] = Encoder.instance { m =>
-    Json.obj(
-      "character" := m.character,
-      "badGuys" := m.badGuys)
-  }
 
   implicit val sideEncoder: Encoder[Side] = Encoder.instance {
     case BadGuys => Encoder.encodeString.apply("BadGuys")

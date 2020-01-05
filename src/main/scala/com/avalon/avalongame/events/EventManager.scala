@@ -138,11 +138,12 @@ object EventManager {
               Sync[F].raiseError(t)
         }
 
-      case StartGame =>
+      case StartGame(gc) =>
         (for {
           ctx           <- context.get.flatMap(c => F.fromOption(c, NoContext))
           room          <- roomManager.get(ctx.roomId)
-          startGameInfo <- room.startGame
+          config        =  gc.getOrElse(GameConfig.default)
+          startGameInfo <- room.startGame(config)
           mapping       <- outgoingRef.get
           outgoing      <- Sync[F].fromOption(mapping.get(ctx.roomId), NoRoomFoundForChatId)
           _             <- outgoing.sendToAllUserSpecific(playerRole(_, startGameInfo.roles).widen[OutgoingEvent])
