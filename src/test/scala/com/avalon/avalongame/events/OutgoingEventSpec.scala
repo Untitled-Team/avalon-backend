@@ -39,9 +39,11 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
   implicit val playerRoleEventArb: Arbitrary[PlayerInfo] = Arbitrary {
     for {
       badGuys <- Gen.listOf[BadPlayerRole](Arbitrary.arbitrary[BadPlayerRole])
+      merlin <- Arbitrary.arbitrary[Nickname].map(GoodPlayerRole(_, Merlin))
+      morgana <- Arbitrary.arbitrary[Nickname].map(BadPlayerRole(_, Morgana))
       role <- Arbitrary.arbitrary[Role]
-      charRole = CharacterRole.fromRole(role, badGuys)
-    } yield PlayerInfo.make[IO](charRole.character, charRole.badGuys).unsafeRunSync()
+      charRole = CharacterRole.fromRole(role, badGuys, merlin, Some(morgana))
+    } yield PlayerInfo.make[IO](charRole.character, charRole.badGuys, Some(List(merlin, morgana))).unsafeRunSync()
   }
 
   test("make sure we can encode GameCreated event") {
@@ -84,6 +86,14 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       val json = teamAssignmentEventJson(teamAssignmentEvent)
 
       json should be(OutgoingEventEncoder.encoder(teamAssignmentEvent))
+    }
+  }
+
+  test("make sure we can encode GameConfigEvent event") {
+    forAll { gameConfigEvent: GameConfigEvent =>
+      val json = gameConfigEventJson(gameConfigEvent)
+
+      json should be(OutgoingEventEncoder.encoder(gameConfigEvent))
     }
   }
 
@@ -182,6 +192,7 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "event" := "PlayerInfo",
       "character" := playerRoleEvent.character,
       "badGuys" := playerRoleEvent.badGuys.map(_.map(_.nickname)),
+      "merlin" := playerRoleEvent.merlin.map(_.map(_.nickname)),
       "id" := playerRoleEvent.id
     )
 
@@ -194,6 +205,18 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "nextMissionLeader" := missionProposalEvent.nextMissionLeader,
       "proposalsLeft" := missionProposalEvent.proposalsLeft,
       "id" := missionProposalEvent.id
+    )
+
+  def gameConfigEventJson(gameConfig: GameConfigEvent): Json =
+    Json.obj(
+      "event" := "GameConfig",
+      "config" := Json.obj(
+        "percival" := gameConfig.config.percival,
+        "morgana" := gameConfig.config.morgana,
+        "mordred" := gameConfig.config.mordred,
+        "oberon" := gameConfig.config.oberon
+      ),
+      "id" := gameConfig.id
     )
 
   def proposedPartyJson(proposedParty: ProposedParty): Json =
@@ -228,10 +251,10 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
       "event" := "AssassinVote",
       "assassinVoteData" := Json.obj(
         "assassin" := assassinVote.assassin,
-        "goodGuys" := assassinVote.goodGuys,
-        "id" := assassinVote.id
+        "goodGuys" := assassinVote.goodGuys
       ),
-      "missions" := assassinVote.missions
+      "missions" := assassinVote.missions,
+      "id" := assassinVote.id
     )
 
   def gameOverJson(gameOver: GameOverOutgoingEvent): Json =
@@ -243,9 +266,9 @@ class OutgoingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
         "merlin" := gameOver.merlin,
         "goodGuys" := gameOver.goodGuys.map(_.nickname.value),
         "badGuys" := gameOver.badGuys.map(_.nickname.value),
-        "winningTeam" := gameOver.winningTeam,
-        "id" := gameOver.id
-      )
+        "winningTeam" := gameOver.winningTeam
+      ),
+      "id" := gameOver.id
     )
 
   val gameNoLongerExistsJson: Json =

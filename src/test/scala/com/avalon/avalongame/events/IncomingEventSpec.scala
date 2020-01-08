@@ -39,7 +39,11 @@ class IncomingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
   }
 
   test("make sure we can decode StartGame event") {
-    Right(StartGame) should be(IncomingEventDecoder.decoder.decodeJson(startGameJson))
+    forAll { startGame: StartGame =>
+      val json = startGameJson(startGame)
+
+      Right(startGame) should be(IncomingEventDecoder.decoder.decodeJson(json))
+    }
   }
 
   test("make sure we can decode LeaveGame event") {
@@ -109,6 +113,19 @@ class IncomingEventSpec extends FunSuite with Matchers with ScalaCheckPropertyCh
   val leaveGameJson: Json =
     Json.obj(
       actionKey := "LeaveGame",
+    )
+
+  def startGameJson(startGame: StartGame): Json =
+    Json.obj(
+      actionKey := "StartGame",
+      "config" := startGame.config.map { config =>
+        Json.obj(
+          "percival" := config.percival,
+          "morgana" := config.morgana,
+          "mordred" := config.mordred,
+          "oberon" := config.oberon,
+        )
+      }.getOrElse(Json.Null)
     )
 
   def reconnectJson(reconnect: Reconnect): Json =

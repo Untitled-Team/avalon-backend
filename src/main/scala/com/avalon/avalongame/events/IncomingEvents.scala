@@ -28,7 +28,10 @@ object Reconnect {
   implicit val decoder: Decoder[Reconnect] = deriveDecoder
 }
 
-case object StartGame extends IncomingEvent
+case class StartGame(config: Option[GameConfig]) extends IncomingEvent
+object StartGame {
+  implicit val decoder: Decoder[StartGame] = deriveDecoder
+}
 
 case class ProposeParty(proposedParty: List[Nickname]) extends IncomingEvent
 object ProposeParty {
@@ -46,8 +49,6 @@ object QuestVoteEvent {
   implicit val decoder: Decoder[QuestVoteEvent] = deriveDecoder
 }
 
-//case object QuestVotesDisplayed extends IncomingEvent
-
 case class IncomingAssassinVote(guess: Nickname) extends IncomingEvent
 object IncomingAssassinVote {
   implicit val decoder: Decoder[IncomingAssassinVote] = deriveDecoder
@@ -62,11 +63,10 @@ object IncomingEventDecoder {
         case "JoinGame"             => JoinGame.decoder.decodeJson(hcursor.value)
         case "LeaveGame"            => Right(LeaveGame)
         case "Reconnect"            => Reconnect.decoder.decodeJson(hcursor.value)
-        case "StartGame"            => Right(StartGame)
+        case "StartGame"            => StartGame.decoder.decodeJson(hcursor.value)
         case "ProposeParty"         => ProposeParty.decoder.decodeJson(hcursor.value)
         case "PartyApprovalVote"    => PartyApprovalVote.decoder.decodeJson(hcursor.value)
         case "QuestVote"            => QuestVoteEvent.decoder.decodeJson(hcursor.value)
-//        case "QuestVotesDisplayed"  => Right(QuestVotesDisplayed)
         case "AssassinVote"         => IncomingAssassinVote.decoder.decodeJson(hcursor.value)
         case e                      => Left(DecodingFailure(s"Invalid IncomingEvent event found: $e", hcursor.history))
       }

@@ -7,27 +7,14 @@ import com.avalon.avalongame.common._
 import com.avalon.avalongame.room._
 
 object Utils {
-//  def representationToGameCreated[F[_]](nickname: Nickname, repr: GameRepresentation)(implicit F: Sync[F]): F[GameStarted] = {
-//    val playerRole: F[PlayerRole] = F.fromOption(
-//      repr.goodGuys.find(_.nickname === nickname) orElse repr.badGuys.find(_.nickname === nickname),
-//      NoRoleForNickname(nickname))
-//
-//
-//    playerRole.map { pr =>
-//      val charRole = CharacterRole.fromRole(pr.role, repr.badGuys.map(_.nickname))
-//      GameStarted(repr.state, repr.missions, charRole, repr.users)
-//    }
-//  }
-
-  def playerRole[F[_]: RandomAlg](nickname: Nickname, repr: AllPlayerRoles)(implicit F: Sync[F]): F[PlayerInfo] = {
-    val playerRole = F.fromOption(
-      repr.goodGuys.find(_.nickname === nickname) orElse repr.badGuys.find(_.nickname === nickname),
-      NoRoleForNickname(nickname))
-
-    playerRole.flatMap { pr =>
-      val charRole = CharacterRole.fromRole(pr.role, repr.badGuys)
-
-      PlayerInfo.make(charRole.character, charRole.badGuys)
-    }
-  }
+  def playerRole[F[_]: RandomAlg](nickname: Nickname, repr: AllPlayerRoles)(implicit F: Sync[F]): F[PlayerInfo] =
+    for {
+      pr <- F.fromOption(
+        repr.goodGuys.find(_.nickname === nickname) orElse repr.badGuys.find(_.nickname === nickname),
+        NoRoleForNickname(nickname))
+      merlin   <- F.fromOption(repr.goodGuys.find(_.role == Merlin), new RuntimeException("No Merlin found"))
+      morgana  =  repr.badGuys.find(_.role == Morgana)
+      charRole =  CharacterRole.fromRole(pr.role, repr.badGuys, merlin, morgana)
+      result   <- PlayerInfo.make(charRole.character, charRole.badGuys, charRole.merlin)
+    } yield result
 }
