@@ -33,8 +33,6 @@ spec:
   strategy: {}
   template:
     metadata:
-      annotations:
-        linkerd.io/inject: enabled
       creationTimestamp: null
       labels:
         app: avalon-back-end
