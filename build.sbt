@@ -69,8 +69,8 @@ dockerfile in docker := {
     entryPoint(
       "java",
       "-server",
-      "-Xms50m",
-      "-Xmx50m",
+      "-Xms200m",
+      "-Xmx200m",
       "-XX:NewRatio=2",
       "-XX:+UseConcMarkSweepGC",
       "-XX:+CMSParallelRemarkEnabled",
