@@ -45,7 +45,13 @@ spec:
           name: http
         - containerPort: 9090
           name: metrics
-        resources: {}
+        resources:
+          requests:
+            memory: "300Mi"
+            cpu: "100m"
+          limits:
+            memory: "500Mi"
+            cpu: "500m"
 status: {}
 ---
 #
